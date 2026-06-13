@@ -51,7 +51,8 @@ public class AiChatClient {
                 public void onClose(int code, String reason, boolean remote) {
                     connected = false;
                     Log.d(TAG, "WebSocket 断开: " + reason);
-                    // 自动重连
+                    // 自动重连（必须新建 WebSocketClient，不可复用）
+                    wsClient = null;
                     mainHandler.postDelayed(() -> {
                         if (!connected) connect();
                     }, 3000);
@@ -76,9 +77,8 @@ public class AiChatClient {
             // 发送 JSON 格式消息
             String json = "{\"type\":\"chat\",\"text\":" + quote(message) + "}";
             wsClient.send(json);
-        } else {
-            // 未连接时重连并重试
-            connect();
+        } else if (wsClient != null) {
+            // 正在连接中，等一下再发
             mainHandler.postDelayed(() -> {
                 if (wsClient != null && connected) {
                     String json = "{\"type\":\"chat\",\"text\":" + quote(message) + "}";
@@ -87,6 +87,17 @@ public class AiChatClient {
                     listener.onResponse("连接中，请稍后再试...");
                 }
             }, 2000);
+        } else {
+            // 没有连接，新建
+            connect();
+            mainHandler.postDelayed(() -> {
+                if (wsClient != null && connected) {
+                    String json = "{\"type\":\"chat\",\"text\":" + quote(message) + "}";
+                    wsClient.send(json);
+                } else if (listener != null) {
+                    listener.onResponse("连接中，请稍后再试...");
+                }
+            }, 3000);
         }
     }
 
