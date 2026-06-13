@@ -32,7 +32,8 @@ public class OverlayPetService extends Service {
     public void onCreate() {
         super.onCreate();
         windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
-        aiChatClient = new AiChatClient();
+        aiChatClient = new AiChatClient(this);
+        aiChatClient.connect();
         createNotificationChannel();
         startForeground(NOTIFICATION_ID, buildNotification());
         addPetToWindow();
@@ -201,6 +202,10 @@ public class OverlayPetService extends Service {
             petView = null;
         }
         hideChatBubble();
+        if (aiChatClient != null) {
+            aiChatClient.destroy();
+            aiChatClient = null;
+        }
     }
 
     @Nullable

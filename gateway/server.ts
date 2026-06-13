@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { WebSocketServer, WebSocket } from "ws";
 import { loadCharacter } from "../agent/character/loader";
 import { loadEmoMap } from "../agent/emoMap/loader";
@@ -31,6 +32,7 @@ function getMachine(sessionId: string): PetStateMachine {
 async function handleChat(sessionId: string, text: string, send: (msg: object) => void) {
   const stateMachine = getMachine(sessionId);
   const state = stateMachine.getState(sessionId);
+  console.log(`[chat] 收到消息: "${text}" | 心情:${state.mood} 亲密度:${state.affinity}`);
 
   const toolCtx: ToolContext = {
     character: { name: character.name },
@@ -55,11 +57,14 @@ async function handleChat(sessionId: string, text: string, send: (msg: object) =
   );
 
   if (result.kind === "shortCircuit") {
+    console.log(`[preprocess] ⚡ 短路触发:`, result.output);
     const out = toSentenceOutput(result.output as any);
     send({ type: "sentence", text: out.ttsText, expression: "sad" });
     send({ type: "done" });
     return;
   }
+
+  console.log(`[preprocess] ✅ 进入LLM | prompt长度:${result.systemPrompt.length}字 历史消息:${result.messages.length}条`);
 
   const tokens = runLoop(
     { systemPrompt: result.systemPrompt, messages: result.messages, tools },
@@ -71,17 +76,22 @@ async function handleChat(sessionId: string, text: string, send: (msg: object) =
   for await (const token of tokens) {
     fullText += token;
   }
+  console.log(`[LLM] 原始回复: "${fullText}"`);
 
   if (fullText) {
     saveL1(sessionId, text, fullText);
+    console.log(`[memory] 记忆已保存 (${text.length + fullText.length}字)`);
   }
 
   async function* singleChunk() { yield fullText; }
 
+  let sentenceCount = 0;
   for await (const s of postprocess(singleChunk())) {
     const exprName = Object.entries(emoMap.emotionMap).find(
       ([, id]) => id === s.actions.expressions[0],
     )?.[0];
+    sentenceCount++;
+    console.log(`[postprocess] 句子${sentenceCount}: "${s.ttsText}" 表情:${exprName ?? "无"}`);
 
     send({
       type: "sentence",
@@ -91,6 +101,7 @@ async function handleChat(sessionId: string, text: string, send: (msg: object) =
     });
   }
 
+  console.log(`[done] ✅ 回复完成 (共${sentenceCount}句)`);
   send({ type: "done" });
 }
 

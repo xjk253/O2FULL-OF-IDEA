@@ -39,7 +39,8 @@ public class ChatActivity extends AppCompatActivity {
         etChatInput = findViewById(R.id.et_chat_input);
         btnSend = findViewById(R.id.btn_send);
 
-        aiChatClient = new AiChatClient();
+        aiChatClient = new AiChatClient(this);
+        aiChatClient.connect();
 
         adapter = new ChatAdapter(messages);
         rvChat.setLayoutManager(new LinearLayoutManager(this));
@@ -132,6 +133,14 @@ public class ChatActivity extends AppCompatActivity {
                 super(itemView);
                 tvMessage = itemView.findViewById(R.id.tv_message);
             }
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (aiChatClient != null) {
+            aiChatClient.destroy();
         }
     }
 }

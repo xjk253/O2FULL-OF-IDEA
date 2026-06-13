@@ -12,4 +12,9 @@
     <string name="chat_send">发送</string>
     <string name="chat_expand">展开</string>
     <string name="chat_close">关闭</string>
+    <string name="gateway_url">ws://localhost:8080</string>
+    <string name="gateway_connecting">连接中...</string>
+    <string name="gateway_connected">已连接</string>
+    <string name="gateway_disconnected">未连接</string>
+    <string name="gateway_error">连接失败，使用离线模式</string>
 </resources>
