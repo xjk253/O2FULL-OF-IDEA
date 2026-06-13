@@ -10,13 +10,13 @@
     "start": "node dist/agent.js"
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "latest",
     "@types/js-yaml": "^4.0.9",
     "tsx": "latest",
     "typescript": "latest",
     "vitest": "latest"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "latest",
     "js-yaml": "^4.1.1"
   }
 }

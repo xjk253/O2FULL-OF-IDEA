@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx --watch server.ts",
-    "build": "esbuild server.ts --bundle --platform=node --format=esm --outdir=dist --external:ws --external:js-yaml --external:@anthropic-ai/sdk",
+    "build": "esbuild server.ts --bundle --platform=node --format=esm --outdir=dist --external:ws",
     "start": "node dist/server.js"
   },
   "devDependencies": {
@@ -14,6 +14,8 @@
     "typescript": "latest"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "latest",
+    "js-yaml": "^4.1.1",
     "ws": "^8.18.2"
   }
 }

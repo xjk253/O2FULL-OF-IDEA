@@ -1,7 +1,5 @@
 #!/bin/bash
 # 泡泡后端部署脚本
-# 用法: ./deploy.sh
-
 set -e
 
 REMOTE="ubuntu@118.25.186.221"
@@ -9,20 +7,23 @@ SSH_KEY="$HOME/.ssh/bubble-server"
 REMOTE_DIR="/home/ubuntu/bubble"
 SSH="ssh -i $SSH_KEY -o StrictHostKeyChecking=no"
 
-echo "==> 同步代码到服务器..."
-$SSH $REMOTE "mkdir -p $REMOTE_DIR"
+echo "==> 清理旧代码 & 上传..."
+$SSH $REMOTE "rm -rf $REMOTE_DIR && mkdir -p $REMOTE_DIR/agent $REMOTE_DIR/gateway"
 
-rsync -avz --delete \
+# tar 打包上传
+tar cf - \
   --exclude='node_modules' \
   --exclude='.git' \
   --exclude='phone' \
   --exclude='*.keystore' \
-  -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=no" \
-  ./ $REMOTE:$REMOTE_DIR/
+  agent/ gateway/ agent/ | \
+  $SSH $REMOTE "tar xf - -C $REMOTE_DIR/"
 
-echo "==> 安装依赖..."
+echo "==> 安装 agent 依赖..."
 $SSH $REMOTE "cd $REMOTE_DIR/agent && npm install --omit=dev"
-$SSH $REMOTE "cd $REMOTE_DIR/gateway && npm install --omit=dev && npm install esbuild && npm run build"
+
+echo "==> 安装 gateway 依赖 & 构建..."
+$SSH $REMOTE "cd $REMOTE_DIR/gateway && npm install && npm run build"
 
 echo "==> 配置 systemd 服务..."
 $SSH $REMOTE "sudo tee /etc/systemd/system/bubble.service > /dev/null" << 'UNIT'
@@ -51,7 +52,7 @@ echo "==> 启动服务..."
 $SSH $REMOTE "sudo systemctl daemon-reload && sudo systemctl enable bubble && sudo systemctl restart bubble"
 
 echo "==> 等待启动..."
-sleep 2
+sleep 3
 
 echo "==> 检查状态..."
 $SSH $REMOTE "sudo systemctl status bubble --no-pager -l"
