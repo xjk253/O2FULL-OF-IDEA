@@ -12,7 +12,6 @@ import android.os.IBinder;
 import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.WindowManager;
-import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 
@@ -83,6 +82,15 @@ public class OverlayPetService extends Service {
         petView = new BubblePetView(this);
         petView.setScreenSize(screenWidth, screenHeight);
         petView.setOnPetClickListener(view -> toggleChatBubble());
+        petView.setOnPositionChangedListener((x, y) -> {
+            petParams.x = x;
+            petParams.y = y;
+            try {
+                windowManager.updateViewLayout(petView, petParams);
+            } catch (IllegalArgumentException e) {
+                // view not attached
+            }
+        });
 
         int petType;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -90,6 +98,10 @@ public class OverlayPetService extends Service {
         } else {
             petType = WindowManager.LayoutParams.TYPE_PHONE;
         }
+
+        int initialX = (int) (Math.random() * Math.max(1, screenWidth - 200));
+        int initialY = (int) (Math.random() * Math.max(1, screenHeight / 2));
+        petView.setInitialPosition(initialX, initialY);
 
         petParams = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
@@ -99,14 +111,12 @@ public class OverlayPetService extends Service {
                 PixelFormat.TRANSLUCENT
         );
         petParams.gravity = Gravity.TOP | Gravity.START;
-        petParams.x = screenWidth / 2 - 50;
-        petParams.y = screenHeight / 3;
+        petParams.x = initialX;
+        petParams.y = initialY;
 
         windowManager.addView(petView, petParams);
 
         petView.post(() -> {
-            petParams.x = screenWidth / 2 - petView.getWidth() / 2;
-            windowManager.updateViewLayout(petView, petParams);
             petView.startBreath();
             petView.scheduleWander();
         });
