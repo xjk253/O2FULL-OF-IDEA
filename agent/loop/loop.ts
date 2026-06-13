@@ -4,10 +4,10 @@ import type { Tool, ToolContext } from "../tools/types";
 import { renderTemplate } from "../prompts/loader";
 
 const DEFAULT_CONFIG: LoopConfig = {
-  apiKey: process.env.DEEPSEEK_API_KEY || "",
-  baseUrl: "https://api.deepseek.com/anthropic",
-  model: "deepseek-chat",
-  maxTokens: 512,
+  apiKey: process.env.BUBBLE_API_KEY || process.env.DEEPSEEK_API_KEY || "",
+  baseUrl: process.env.BUBBLE_BASE_URL || "https://api.deepseek.com/anthropic",
+  model: process.env.BUBBLE_MODEL || "deepseek-chat",
+  maxTokens: parseInt(process.env.BUBBLE_MAX_TOKENS || "512", 10),
 };
 
 const TOOL_CALL_RE = /```tool_call\s*\n([\s\S]*?)\n```/g;

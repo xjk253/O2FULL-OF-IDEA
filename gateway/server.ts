@@ -12,7 +12,7 @@ import { createWarmMemory } from "../agent/memory/warm";
 import { save as saveL1, getRecent } from "../agent/memory/l1";
 import type { ToolContext } from "../agent/tools/types";
 
-const PORT = 8080;
+const PORT = parseInt(process.env.PORT || "8080", 10);
 
 const character = loadCharacter("../agent/character/config.yaml");
 const emoMap = loadEmoMap("../agent/emoMap/modelDict.json");
