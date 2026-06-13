@@ -10,6 +10,18 @@ android {
         }
     }
 
+    signingConfigs {
+        create("bubble") {
+            val ksFile = file("../bubble-release.keystore")
+            if (ksFile.exists()) {
+                storeFile = ksFile
+                storePassword = providers.environmentVariable("BUBBLE_KS_PASSWORD").getOrElse("bubblepet")
+                keyAlias = "bubble"
+                keyPassword = providers.environmentVariable("BUBBLE_KS_PASSWORD").getOrElse("bubblepet")
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "com.example.bubblepet"
         minSdk = 24
@@ -21,10 +33,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("bubble")
+        }
         release {
-            optimization {
-                enable = false
-            }
+            signingConfig = signingConfigs.getByName("bubble")
+            isMinifyEnabled = false
         }
     }
     compileOptions {
