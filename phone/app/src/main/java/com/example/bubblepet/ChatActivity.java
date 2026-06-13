@@ -1,11 +1,13 @@
 package com.example.bubblepet;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -50,6 +52,20 @@ public class ChatActivity extends AppCompatActivity {
                 etChatInput.setText("");
             }
         });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 从 Service 用 FLAG_ACTIVITY_NEW_TASK 启动时，系统不会自动弹键盘
+        // 需要主动请求焦点 + 显示输入法
+        etChatInput.postDelayed(() -> {
+            etChatInput.requestFocus();
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.showSoftInput(etChatInput, InputMethodManager.SHOW_IMPLICIT);
+            }
+        }, 200);
     }
 
     private void sendMessage(String text) {
