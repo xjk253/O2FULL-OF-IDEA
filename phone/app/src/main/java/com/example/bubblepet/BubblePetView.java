@@ -40,17 +40,22 @@ public class BubblePetView extends View {
     private int screenWidth;
     private int screenHeight;
     private boolean isDragging = false;
-    private float dragOffsetX;
-    private float dragOffsetY;
     private float downRawX;
     private float downRawY;
     private boolean hasMoved;
+    private int currentX;
+    private int currentY;
 
     public interface OnPetClickListener {
         void onPetClick(BubblePetView view);
     }
 
+    public interface OnPositionChangedListener {
+        void onPositionChanged(int x, int y);
+    }
+
     private OnPetClickListener clickListener;
+    private OnPositionChangedListener positionListener;
 
     public BubblePetView(Context context) {
         this(context, null);
@@ -131,8 +136,6 @@ public class BubblePetView extends View {
                 downRawX = event.getRawX();
                 downRawY = event.getRawY();
                 hasMoved = false;
-                dragOffsetX = event.getRawX() - getX();
-                dragOffsetY = event.getRawY() - getY();
                 return true;
             case MotionEvent.ACTION_MOVE:
                 if (isDragging) {
@@ -140,12 +143,9 @@ public class BubblePetView extends View {
                             || Math.abs(event.getRawY() - downRawY) > CLICK_THRESHOLD_PX) {
                         hasMoved = true;
                     }
-                    float newX = event.getRawX() - dragOffsetX;
-                    float newY = event.getRawY() - dragOffsetY;
-                    newX = clampX(newX);
-                    newY = clampY(newY);
-                    setX(newX);
-                    setY(newY);
+                    int newX = clampX((int) (event.getRawX() - getWidth() / 2f));
+                    int newY = clampY((int) (event.getRawY() - getHeight() / 2f));
+                    updatePosition(newX, newY);
                 }
                 return true;
             case MotionEvent.ACTION_UP:
@@ -161,21 +161,34 @@ public class BubblePetView extends View {
         return super.onTouchEvent(event);
     }
 
-    private float clampX(float x) {
+    private int clampX(int x) {
         if (x < 0) return 0;
         if (x + getWidth() > screenWidth) return screenWidth - getWidth();
         return x;
     }
 
-    private float clampY(float y) {
+    private int clampY(int y) {
         if (y < 0) return 0;
         if (y + getHeight() > screenHeight) return screenHeight - getHeight();
         return y;
     }
 
+    private void updatePosition(int x, int y) {
+        currentX = x;
+        currentY = y;
+        if (positionListener != null) {
+            positionListener.onPositionChanged(x, y);
+        }
+    }
+
     public void setScreenSize(int width, int height) {
         this.screenWidth = width;
         this.screenHeight = height;
+    }
+
+    public void setInitialPosition(int x, int y) {
+        currentX = x;
+        currentY = y;
     }
 
     private float dpToPx(float dp) {
@@ -223,22 +236,19 @@ public class BubblePetView extends View {
 
     private void startWander() {
         if (isDragging) return;
-        float currentX = getX();
-        float currentY = getY();
-        final float targetX = clampX(currentX + (float) ((Math.random() - 0.5) * screenWidth * 0.4));
-        final float targetY = clampY(currentY + (float) ((Math.random() - 0.5) * screenHeight * 0.3));
+        final int startX = currentX;
+        final int startY = currentY;
+        final int targetX = clampX((int) (Math.random() * (screenWidth - getWidth())));
+        final int targetY = clampY((int) (Math.random() * (screenHeight - getHeight())));
 
         wanderAnimator = ValueAnimator.ofFloat(0f, 1f);
         wanderAnimator.setDuration(WANDER_DURATION_MS);
         wanderAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
-        final float startX = currentX;
-        final float startY = currentY;
         wanderAnimator.addUpdateListener(anim -> {
             float fraction = (float) anim.getAnimatedValue();
-            float x = startX + (targetX - startX) * fraction;
-            float y = startY + (targetY - startY) * fraction;
-            setX(clampX(x));
-            setY(clampY(y));
+            int x = clampX((int) (startX + (targetX - startX) * fraction));
+            int y = clampY((int) (startY + (targetY - startY) * fraction));
+            updatePosition(x, y);
         });
         wanderAnimator.addListener(new AnimatorListenerAdapter() {
             @Override
@@ -250,8 +260,8 @@ public class BubblePetView extends View {
     }
 
     private void snapToEdge() {
-        float currentX = getX();
-        float targetX;
+        int startX = currentX;
+        int targetX;
         float centerX = currentX + getWidth() / 2f;
         if (centerX < screenWidth / 2f) {
             targetX = 0;
@@ -259,18 +269,23 @@ public class BubblePetView extends View {
             targetX = screenWidth - getWidth();
         }
 
-        snapAnimator = ValueAnimator.ofFloat(currentX, targetX);
+        snapAnimator = ValueAnimator.ofFloat(0f, 1f);
         snapAnimator.setDuration(SNAP_DURATION_MS);
         snapAnimator.setInterpolator(new OvershootInterpolator(0.5f));
         snapAnimator.addUpdateListener(anim -> {
-            float x = (float) anim.getAnimatedValue();
-            setX(clampX(x));
+            float fraction = (float) anim.getAnimatedValue();
+            int x = clampX((int) (startX + (targetX - startX) * fraction));
+            updatePosition(x, currentY);
         });
         snapAnimator.start();
     }
 
     public void setOnPetClickListener(OnPetClickListener listener) {
         this.clickListener = listener;
+    }
+
+    public void setOnPositionChangedListener(OnPositionChangedListener listener) {
+        this.positionListener = listener;
     }
 
     @Override
