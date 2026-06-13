@@ -6,18 +6,29 @@ REMOTE="ubuntu@118.25.186.221"
 SSH_KEY="$HOME/.ssh/bubble-server"
 REMOTE_DIR="/home/ubuntu/bubble"
 SSH="ssh -i $SSH_KEY -o StrictHostKeyChecking=no"
+SCP="scp -i $SSH_KEY -o StrictHostKeyChecking=no"
 
-echo "==> 清理旧代码 & 上传..."
-$SSH $REMOTE "rm -rf $REMOTE_DIR && mkdir -p $REMOTE_DIR/agent $REMOTE_DIR/gateway"
+echo "==> 同步代码到服务器..."
+$SSH $REMOTE "mkdir -p $REMOTE_DIR/agent $REMOTE_DIR/gateway"
 
-# tar 打包上传
+# tar 打包上传（排除本地敏感文件和不需要的目录）
 tar cf - \
   --exclude='node_modules' \
   --exclude='.git' \
   --exclude='phone' \
   --exclude='*.keystore' \
-  agent/ gateway/ agent/ | \
+  --exclude='.env' \
+  agent/ gateway/ | \
   $SSH $REMOTE "tar xf - -C $REMOTE_DIR/"
+
+echo "==> 上传 .env（本地，不入 git）..."
+if [ -f gateway/.env ]; then
+  $SCP gateway/.env $REMOTE:$REMOTE_DIR/gateway/.env
+else
+  echo "⚠️  gateway/.env 不存在！服务将无法调用 AI。"
+  echo "   请创建 gateway/.env（参考 gateway/.env.example）"
+  exit 1
+fi
 
 echo "==> 安装 agent 依赖..."
 $SSH $REMOTE "cd $REMOTE_DIR/agent && npm install --omit=dev"
@@ -35,12 +46,8 @@ After=network.target
 Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/bubble/gateway
-Environment=BUBBLE_API_KEY=649454e74b4f409f92186ca85ad2c7e7.nx9SnFWFfI7CEajR
-Environment=BUBBLE_BASE_URL=https://open.bigmodel.cn/api/anthropic
-Environment=BUBBLE_MODEL=glm-4-flash
-Environment=PORT=8080
 Environment=NODE_ENV=production
-ExecStart=/usr/bin/npx tsx server.ts
+ExecStart=/usr/bin/npx tsx --env-file=.env server.ts
 Restart=always
 RestartSec=5
 
