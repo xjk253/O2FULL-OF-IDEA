@@ -1,3 +1,15 @@
 <resources>
     <string name="app_name">BubblePetApp</string>
+    <string name="permission_granted">权限已就绪，可以启动宠物！</string>
+    <string name="permission_denied_overlay">需要「显示在其他应用上层」权限才能显示悬浮宠物</string>
+    <string name="btn_grant_permission">去授权</string>
+    <string name="btn_start_pet">启动宠物</string>
+    <string name="btn_stop_pet">关闭宠物</string>
+    <string name="notification_channel_name">悬浮宠物服务</string>
+    <string name="notification_title">BubblePet 正在运行</string>
+    <string name="notification_text">你的宠物正在屏幕上游走~</string>
+    <string name="chat_hint">输入消息...</string>
+    <string name="chat_send">发送</string>
+    <string name="chat_expand">展开</string>
+    <string name="chat_close">关闭</string>
 </resources>

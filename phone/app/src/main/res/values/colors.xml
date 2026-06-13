@@ -2,4 +2,9 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="pet_color">#FF6EC6FF</color>
+    <color name="pet_stroke">#FF2196F3</color>
+    <color name="chat_bubble_user">#FFDCF8C6</color>
+    <color name="chat_bubble_ai">#FFFFFFFF</color>
+    <color name="chat_window_bg">#FFF5F5F5</color>
 </resources>
