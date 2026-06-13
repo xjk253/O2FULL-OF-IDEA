@@ -93,10 +93,15 @@ public class AiChatClient {
             // 异步等待连接后发送
             new Thread(() -> {
                 try {
-                    if (wsClient != null) {
-                        wsClient.connectBlocking(5000, java.util.concurrent.TimeUnit.MILLISECONDS);
-                    } else if (!closed) {
-                        connect();
+                    // 已关闭的 client 不可复用，必须新建
+                    if (wsClient == null || wsClient.isClosed()) {
+                        if (!closed) connect();
+                    }
+                    // 等待连接建立
+                    int wait = 0;
+                    while (!connected && wait < 5000 && !closed) {
+                        Thread.sleep(100);
+                        wait += 100;
                     }
                     if (connected && wsClient != null && wsClient.isOpen()) {
                         String json = "{\"type\":\"chat\",\"text\":" + quote(message) + "}";
