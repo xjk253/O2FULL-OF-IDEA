@@ -18,10 +18,6 @@ public class AiChatClient {
         void onResponse(String reply);
     }
 
-    public interface OnStatusListener {
-        void onStatusChanged(boolean connected);
-    }
-
     private WebSocketClient wsClient;
     private String sessionId;
     private volatile boolean connected = false;
@@ -29,26 +25,10 @@ public class AiChatClient {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     private OnResponseListener currentListener;
-    private OnStatusListener statusListener;
     private final StringBuilder replyBuffer = new StringBuilder();
 
     public AiChatClient() {
         connect();
-    }
-
-    public void setStatusListener(OnStatusListener listener) {
-        this.statusListener = listener;
-        listener.onStatusChanged(connected);
-    }
-
-    public boolean isConnected() {
-        return connected;
-    }
-
-    private void notifyStatus() {
-        if (statusListener != null) {
-            mainHandler.post(() -> statusListener.onStatusChanged(connected));
-        }
     }
 
     private void connect() {
@@ -60,7 +40,6 @@ public class AiChatClient {
                 public void onOpen(ServerHandshake handshake) {
                     connected = true;
                     Log.d(TAG, "WebSocket 已连接");
-                    notifyStatus();
                 }
 
                 @Override
@@ -73,7 +52,6 @@ public class AiChatClient {
                 public void onClose(int code, String reason, boolean remote) {
                     connected = false;
                     Log.d(TAG, "WebSocket 断开: " + reason);
-                    notifyStatus();
                     if (!closed) {
                         // 延迟重连，用新对象
                         mainHandler.postDelayed(() -> {

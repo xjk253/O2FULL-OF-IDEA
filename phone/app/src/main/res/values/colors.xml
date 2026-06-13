@@ -2,30 +2,9 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-
-    <!-- 宠物主题色（蓝色企鹅系）-->
     <color name="pet_color">#FF6EC6FF</color>
     <color name="pet_stroke">#FF2196F3</color>
-
-    <!-- 聊天界面背景 -->
-    <color name="chat_window_bg">#FFF2F5FA</color>
-
-    <!-- 用户气泡（微信绿，辨识度高）-->
-    <color name="chat_bubble_user">#FF95EC69</color>
-    <color name="chat_text_user">#FF1A1A1A</color>
-
-    <!-- AI 气泡（纯白）-->
+    <color name="chat_bubble_user">#FFDCF8C6</color>
     <color name="chat_bubble_ai">#FFFFFFFF</color>
-    <color name="chat_text_ai">#FF2C2C2C</color>
-
-    <!-- 时间戳、次要文字 -->
-    <color name="chat_time_text">#FF9AA0A6</color>
-
-    <!-- 输入区域 -->
-    <color name="chat_send_btn">#FF6EC6FF</color>
-    <color name="chat_send_btn_pressed">#FF4FB4F0</color>
-
-    <!-- 顶部标题栏 -->
-    <color name="chat_toolbar_text">#FF2C2C2C</color>
-    <color name="chat_toolbar_divider">#FFEDEDF0</color>
+    <color name="chat_window_bg">#FFF5F5F5</color>
 </resources>
