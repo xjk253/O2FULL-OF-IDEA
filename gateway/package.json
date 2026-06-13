@@ -1,0 +1,17 @@
+{
+  "name": "bubble-gateway",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx --watch server.ts",
+    "start": "tsx server.ts"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.14",
+    "tsx": "latest",
+    "typescript": "latest"
+  },
+  "dependencies": {
+    "ws": "^8.18.2"
+  }
+}
