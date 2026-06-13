@@ -20,10 +20,10 @@ public class AiChatClient {
 
     private WebSocketClient wsClient;
     private String sessionId;
-    private boolean connected = false;
+    private volatile boolean connected = false;
+    private volatile boolean closed = false;  // 标记是否已主动关闭
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
-    // 当前对话的回调，用于收集多句回复
     private OnResponseListener currentListener;
     private final StringBuilder replyBuffer = new StringBuilder();
 
@@ -32,6 +32,7 @@ public class AiChatClient {
     }
 
     private void connect() {
+        if (closed) return;
         try {
             URI uri = new URI(WS_URL);
             wsClient = new WebSocketClient(uri) {
@@ -51,11 +52,14 @@ public class AiChatClient {
                 public void onClose(int code, String reason, boolean remote) {
                     connected = false;
                     Log.d(TAG, "WebSocket 断开: " + reason);
-                    // 自动重连（必须新建 WebSocketClient，不可复用）
-                    wsClient = null;
-                    mainHandler.postDelayed(() -> {
-                        if (!connected) connect();
-                    }, 3000);
+                    if (!closed) {
+                        // 延迟重连，用新对象
+                        mainHandler.postDelayed(() -> {
+                            if (!closed && !connected) {
+                                try { connect(); } catch (Exception ignored) {}
+                            }
+                        }, 3000);
+                    }
                 }
 
                 @Override
@@ -63,41 +67,50 @@ public class AiChatClient {
                     Log.e(TAG, "WebSocket 错误: " + ex.getMessage());
                 }
             };
-            wsClient.connect();
+            wsClient.connectBlocking();  // 阻塞式连接，避免并发问题
         } catch (Exception e) {
             Log.e(TAG, "连接失败: " + e.getMessage());
+            // 连接失败，延迟重试
+            if (!closed) {
+                mainHandler.postDelayed(() -> {
+                    if (!closed && !connected) {
+                        try { connect(); } catch (Exception ignored) {}
+                    }
+                }, 5000);
+            }
         }
     }
 
     public void sendMessage(String message, OnResponseListener listener) {
+        if (closed) return;
         currentListener = listener;
         replyBuffer.setLength(0);
 
-        if (wsClient != null && connected) {
-            // 发送 JSON 格式消息
+        if (connected && wsClient != null && wsClient.isOpen()) {
             String json = "{\"type\":\"chat\",\"text\":" + quote(message) + "}";
             wsClient.send(json);
-        } else if (wsClient != null) {
-            // 正在连接中，等一下再发
-            mainHandler.postDelayed(() -> {
-                if (wsClient != null && connected) {
-                    String json = "{\"type\":\"chat\",\"text\":" + quote(message) + "}";
-                    wsClient.send(json);
-                } else if (listener != null) {
-                    listener.onResponse("连接中，请稍后再试...");
-                }
-            }, 2000);
         } else {
-            // 没有连接，新建
-            connect();
-            mainHandler.postDelayed(() -> {
-                if (wsClient != null && connected) {
-                    String json = "{\"type\":\"chat\",\"text\":" + quote(message) + "}";
-                    wsClient.send(json);
-                } else if (listener != null) {
-                    listener.onResponse("连接中，请稍后再试...");
+            // 异步等待连接后发送
+            new Thread(() -> {
+                try {
+                    if (wsClient != null) {
+                        wsClient.connectBlocking(5000, java.util.concurrent.TimeUnit.MILLISECONDS);
+                    } else if (!closed) {
+                        connect();
+                    }
+                    if (connected && wsClient != null && wsClient.isOpen()) {
+                        String json = "{\"type\":\"chat\",\"text\":" + quote(message) + "}";
+                        wsClient.send(json);
+                    } else if (listener != null) {
+                        mainHandler.post(() -> listener.onResponse("连接失败，请重试..."));
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "发送失败: " + e.getMessage());
+                    if (listener != null) {
+                        mainHandler.post(() -> listener.onResponse("连接失败，请重试..."));
+                    }
                 }
-            }, 3000);
+            }).start();
         }
     }
 
@@ -113,7 +126,6 @@ public class AiChatClient {
                     break;
 
                 case "sentence":
-                    // 收集每句回复
                     String text = msg.optString("text", "");
                     if (!text.isEmpty()) {
                         if (replyBuffer.length() > 0) replyBuffer.append("\n");
@@ -122,7 +134,6 @@ public class AiChatClient {
                     break;
 
                 case "done":
-                    // 本轮对话结束，回调完整回复
                     final String fullReply = replyBuffer.toString().trim();
                     if (currentListener != null && !fullReply.isEmpty()) {
                         mainHandler.post(() -> currentListener.onResponse(fullReply));
@@ -142,7 +153,6 @@ public class AiChatClient {
         }
     }
 
-    /** 简易 JSON 字符串转义 */
     private static String quote(String s) {
         StringBuilder sb = new StringBuilder("\"");
         for (char c : s.toCharArray()) {
@@ -159,8 +169,11 @@ public class AiChatClient {
     }
 
     public void disconnect() {
+        closed = true;
+        connected = false;
         if (wsClient != null) {
             try { wsClient.close(); } catch (Exception ignored) {}
+            wsClient = null;
         }
     }
 }

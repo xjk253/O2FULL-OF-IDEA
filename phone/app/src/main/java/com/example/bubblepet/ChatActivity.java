@@ -68,6 +68,14 @@ public class ChatActivity extends AppCompatActivity {
         }, 200);
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (aiChatClient != null) {
+            aiChatClient.disconnect();
+        }
+    }
+
     private void sendMessage(String text) {
         messages.add(new ChatMessage(text, true));
         adapter.notifyItemInserted(messages.size() - 1);
