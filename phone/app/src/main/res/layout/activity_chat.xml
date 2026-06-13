@@ -2,42 +2,100 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white"
+    android:background="@color/chat_window_bg"
     android:orientation="vertical">
 
+    <!-- 顶部标题栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@android:color/white"
+        android:elevation="2dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
+
+        <ImageView
+            android:id="@+id/btn_back"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/ic_media_previous"
+            android:contentDescription="返回"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="4dp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginStart="12dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="泡泡"
+                android:textColor="@color/chat_toolbar_text"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="在线"
+                android:textColor="@color/chat_time_text"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 消息列表 -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_chat"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
         android:clipToPadding="false"
-        android:padding="8dp" />
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp" />
 
+    <!-- 输入区 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
         android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@android:color/white"
+        android:elevation="8dp"
         android:padding="8dp">
 
         <EditText
             android:id="@+id/et_chat_input"
             android:layout_width="0dp"
-            android:layout_height="48dp"
+            android:layout_height="40dp"
             android:layout_weight="1"
-            android:background="@android:drawable/edit_text"
+            android:background="@android:color/white"
             android:hint="@string/chat_hint"
             android:inputType="text"
-            android:maxLines="2"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:textSize="15sp" />
+            android:maxLines="1"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:textSize="15sp"
+            android:textColorHint="#FFB0B3B8"
+            android:textCursorDrawable="@null" />
 
         <Button
             android:id="@+id/btn_send"
             android:layout_width="wrap_content"
-            android:layout_height="48dp"
+            android:layout_height="40dp"
             android:layout_marginStart="8dp"
-            android:text="@string/chat_send" />
+            android:minWidth="72dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:text="@string/chat_send"
+            android:textColor="@android:color/white"
+            android:textSize="15sp"
+            android:background="@drawable/bg_send_btn" />
     </LinearLayout>
 </LinearLayout>
