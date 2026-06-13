@@ -1,0 +1,13 @@
+{
+  "name": "penguin-bubble",
+  "emotionMap": {
+    "happy": 0,
+    "excited": 1,
+    "shy": 2,
+    "sleepy": 3,
+    "sad": 4,
+    "proud": 5,
+    "surprised": 6,
+    "thinking": 7
+  }
+}
