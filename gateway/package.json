@@ -4,12 +4,10 @@
   "type": "module",
   "scripts": {
     "dev": "tsx --watch server.ts",
-    "build": "esbuild server.ts --bundle --platform=node --format=esm --outdir=dist --external:ws",
-    "start": "node dist/server.js"
+    "start": "tsx server.ts"
   },
   "devDependencies": {
     "@types/ws": "^8.5.14",
-    "esbuild": "^0.25.0",
     "tsx": "latest",
     "typescript": "latest"
   },

@@ -22,8 +22,8 @@ tar cf - \
 echo "==> 安装 agent 依赖..."
 $SSH $REMOTE "cd $REMOTE_DIR/agent && npm install --omit=dev"
 
-echo "==> 安装 gateway 依赖 & 构建..."
-$SSH $REMOTE "cd $REMOTE_DIR/gateway && npm install && npm run build"
+echo "==> 安装 gateway 依赖..."
+$SSH $REMOTE "cd $REMOTE_DIR/gateway && npm install"
 
 echo "==> 配置 systemd 服务..."
 $SSH $REMOTE "sudo tee /etc/systemd/system/bubble.service > /dev/null" << 'UNIT'
@@ -40,7 +40,7 @@ Environment=BUBBLE_BASE_URL=https://open.bigmodel.cn/api/anthropic
 Environment=BUBBLE_MODEL=glm-4-flash
 Environment=PORT=8080
 Environment=NODE_ENV=production
-ExecStart=/usr/bin/node dist/server.js
+ExecStart=/usr/bin/npx tsx server.ts
 Restart=always
 RestartSec=5
 
