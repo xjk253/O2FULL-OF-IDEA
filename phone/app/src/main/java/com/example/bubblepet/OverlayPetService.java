@@ -1,0 +1,201 @@
+package com.example.bubblepet;
+
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.Service;
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.PixelFormat;
+import android.os.Build;
+import android.os.IBinder;
+import android.util.DisplayMetrics;
+import android.view.Gravity;
+import android.view.WindowManager;
+import android.widget.Toast;
+
+import androidx.annotation.Nullable;
+
+public class OverlayPetService extends Service {
+
+    private static final String CHANNEL_ID = "bubble_pet_channel";
+    private static final int NOTIFICATION_ID = 1;
+
+    private WindowManager windowManager;
+    private BubblePetView petView;
+    private WindowManager.LayoutParams petParams;
+    private ChatBubbleView chatBubbleView;
+    private WindowManager.LayoutParams chatBubbleParams;
+    private boolean isChatVisible = false;
+    private AiChatClient aiChatClient;
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+        aiChatClient = new AiChatClient();
+        createNotificationChannel();
+        startForeground(NOTIFICATION_ID, buildNotification());
+        addPetToWindow();
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        return START_STICKY;
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    CHANNEL_ID,
+                    getString(R.string.notification_channel_name),
+                    NotificationManager.IMPORTANCE_LOW
+            );
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) {
+                manager.createNotificationChannel(channel);
+            }
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private Notification buildNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            return new Notification.Builder(this, CHANNEL_ID)
+                    .setContentTitle(getString(R.string.notification_title))
+                    .setContentText(getString(R.string.notification_text))
+                    .setSmallIcon(android.R.drawable.ic_dialog_info)
+                    .build();
+        }
+        return new Notification.Builder(this)
+                .setContentTitle(getString(R.string.notification_title))
+                .setContentText(getString(R.string.notification_text))
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .build();
+    }
+
+    private void addPetToWindow() {
+        DisplayMetrics metrics = new DisplayMetrics();
+        windowManager.getDefaultDisplay().getMetrics(metrics);
+        int screenWidth = metrics.widthPixels;
+        int screenHeight = metrics.heightPixels;
+
+        petView = new BubblePetView(this);
+        petView.setScreenSize(screenWidth, screenHeight);
+        petView.setOnPetClickListener(view -> toggleChatBubble());
+
+        int petType;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            petType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+        } else {
+            petType = WindowManager.LayoutParams.TYPE_PHONE;
+        }
+
+        petParams = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                petType,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT
+        );
+        petParams.gravity = Gravity.TOP | Gravity.START;
+        petParams.x = screenWidth / 2 - 50;
+        petParams.y = screenHeight / 3;
+
+        windowManager.addView(petView, petParams);
+
+        petView.post(() -> {
+            petParams.x = screenWidth / 2 - petView.getWidth() / 2;
+            windowManager.updateViewLayout(petView, petParams);
+            petView.startBreath();
+            petView.scheduleWander();
+        });
+    }
+
+    private void toggleChatBubble() {
+        if (isChatVisible) {
+            hideChatBubble();
+        } else {
+            showChatBubble();
+        }
+    }
+
+    private void showChatBubble() {
+        if (chatBubbleView != null) return;
+        chatBubbleView = new ChatBubbleView(this);
+        chatBubbleView.setOnChatListener(new ChatBubbleView.OnChatListener() {
+            @Override
+            public void onSendMessage(String message) {
+                aiChatClient.sendMessage(message, reply ->
+                        chatBubbleView.setLastMessage(reply)
+                );
+            }
+
+            @Override
+            public void onExpand() {
+                hideChatBubble();
+                Intent intent = new Intent(OverlayPetService.this, ChatActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+            }
+
+            @Override
+            public void onClose() {
+                hideChatBubble();
+            }
+        });
+
+        int chatType;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            chatType = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+        } else {
+            chatType = WindowManager.LayoutParams.TYPE_PHONE;
+        }
+
+        chatBubbleParams = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                chatType,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT
+        );
+        chatBubbleParams.gravity = Gravity.TOP | Gravity.START;
+
+        float petCenterX = petParams.x + petView.getWidth() / 2f;
+        float petTopY = petParams.y;
+        int chatWidth = (int) (260 * getResources().getDisplayMetrics().density);
+        chatBubbleParams.x = (int) (petCenterX - chatWidth / 2f);
+        chatBubbleParams.y = (int) petTopY - 300;
+        if (chatBubbleParams.y < 0) {
+            chatBubbleParams.y = (int) (petTopY + petView.getHeight());
+        }
+
+        windowManager.addView(chatBubbleView, chatBubbleParams);
+        isChatVisible = true;
+    }
+
+    private void hideChatBubble() {
+        if (chatBubbleView != null) {
+            windowManager.removeView(chatBubbleView);
+            chatBubbleView = null;
+        }
+        isChatVisible = false;
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (petView != null) {
+            petView.destroy();
+            windowManager.removeView(petView);
+            petView = null;
+        }
+        hideChatBubble();
+    }
+
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+}
