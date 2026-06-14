@@ -7,13 +7,15 @@ export async function* sentenceDivider(
     buffer += chunk;
   }
 
-  // 统一在分句前剥离所有 think 块,兼容多种写法:
-  //   <think>...</think>  <think/>...</think>  <think attr>...</think>
-  //   非标准双斜杠:  <think/>...</think/>  (旧测试用例)
-  //   自闭合无内容:  <think/>  <think></think>
+  // 统一在分句前剥离所有 think/thinking 块,兼容多种写法:
+  //   尖括号: <think>...</think>  <thinking>...</thinking>
+  //   自闭合: <think/>  <thinking/>
+  //   方括号: [thinking]...[/thinking]  (LLM 偶尔用这种)
   buffer = buffer
-    .replace(/<think\b[^>]*>[\s\S]*?<\/think\b[^>]*>/gi, "")
-    .replace(/<think\b[^>]*\/>/gi, "");
+    .replace(/<think(?:ing)?\b[^>]*>[\s\S]*?<\/think(?:ing)?\b[^>]*>/gi, "")
+    .replace(/<think(?:ing)?\b[^>]*\/>/gi, "")
+    .replace(/\[thinking\][\s\S]*?\[\/thinking\]/gi, "")
+    .replace(/\[think\][\s\S]*?\[\/think\]/gi, "");
 
   // split on sentence boundaries, keeping delimiter with sentence
   const parts = buffer.split(/(?<=[。！？.!?])/g);
