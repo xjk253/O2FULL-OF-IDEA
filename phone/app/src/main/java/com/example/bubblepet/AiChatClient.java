@@ -195,8 +195,10 @@ public class AiChatClient {
     private static String stripTags(String s) {
         if (s == null) return "";
         return s
-                .replaceAll("<think\\b[^>]*>[\\s\\S]*?</think\\b[^>]*>", "")
-                .replaceAll("<think\\b[^>]*/>", "")
+                .replaceAll("<think(?:ing)?\\b[^>]*>[\\s\\S]*?</think(?:ing)?\\b[^>]*>", "")
+                .replaceAll("<think(?:ing)?\\b[^>]*/>", "")
+                .replaceAll("\\[thinking\\][\\s\\S]*?\\[/thinking\\]", "")
+                .replaceAll("\\[think\\][\\s\\S]*?\\[/think\\]", "")
                 .replaceAll("\\[[a-zA-Z_]+\\]", "")
                 .trim();
     }
