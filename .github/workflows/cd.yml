@@ -46,9 +46,13 @@ jobs:
           IFS='.' read -r MAJ MIN PAT <<< "$VERSION"
 
           if [ "${{ github.ref_name }}" = "main" ]; then
-            MAJ=$((MAJ + 1))
-            MIN=0
-            PAT=0
+            # 规则: X.0.0 → X.1.1,之后 X.1.Y → X.1.(Y+1)
+            if [ $MIN -eq 0 ] && [ $PAT -eq 0 ]; then
+              MIN=1
+              PAT=1
+            else
+              PAT=$((PAT + 1))
+            fi
           else
             PAT=$((PAT + 1))
             if [ $PAT -gt 9 ]; then
