@@ -14,8 +14,8 @@ android {
         applicationId = "com.example.bubblepet"
         minSdk = 24
         targetSdk = 36
-        versionCode = 800
-        versionName = "8.0.0"
+        versionCode = 811
+        versionName = "8.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
