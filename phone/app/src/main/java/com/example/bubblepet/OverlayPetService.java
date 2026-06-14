@@ -8,9 +8,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.PixelFormat;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.Gravity;
+import android.view.WindowInsets;
 import android.view.WindowManager;
 
 import androidx.annotation.Nullable;
@@ -29,6 +33,14 @@ public class OverlayPetService extends Service {
     private AiChatClient aiChatClient;
     private TtsPlayer ttsPlayer;
     private final StringBuilder pendingReply = new StringBuilder();
+    private final Handler imeHandler = new Handler(Looper.getMainLooper());
+    private final Runnable imeCheckRunnable = new Runnable() {
+        @Override
+        public void run() {
+            detectImeAndUpdateMargin();
+            imeHandler.postDelayed(this, 500);
+        }
+    };
 
     @Override
     public void onCreate() {
@@ -148,6 +160,25 @@ public class OverlayPetService extends Service {
             petView.startBreath();
             petView.scheduleWander();
         });
+
+        // 启动键盘检测，有键盘时宠物避开键盘区域
+        imeHandler.post(imeCheckRunnable);
+    }
+
+    private void detectImeAndUpdateMargin() {
+        if (petView == null) return;
+        int imeHeight = 0;
+        // API 30+ 可通过 WindowMetrics 获取 IME 高度
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                WindowInsets insets = windowManager.getCurrentWindowMetrics().getWindowInsets();
+                android.graphics.Insets ime = insets.getInsets(WindowInsets.Type.ime());
+                imeHeight = ime.bottom;
+            } catch (Exception e) {
+                Log.w("BubblePet", "IME 检测异常: " + e.getMessage());
+            }
+        }
+        petView.setBottomMargin(imeHeight);
     }
 
     private void toggleChatBubble() {
@@ -231,6 +262,7 @@ public class OverlayPetService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        imeHandler.removeCallbacks(imeCheckRunnable);
         if (petView != null) {
             petView.destroy();
             windowManager.removeView(petView);

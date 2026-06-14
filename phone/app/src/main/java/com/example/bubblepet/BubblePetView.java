@@ -43,6 +43,7 @@ public class BubblePetView extends View {
 
     private int screenWidth;
     private int screenHeight;
+    private int bottomMargin = 0;
     private boolean isDragging = false;
     private float downRawX;
     private float downRawY;
@@ -311,7 +312,8 @@ public class BubblePetView extends View {
 
     private int clampY(int y) {
         if (y < 0) return 0;
-        if (y + getHeight() > screenHeight) return screenHeight - getHeight();
+        int maxY = screenHeight - bottomMargin - getHeight();
+        if (y > maxY) return Math.max(0, maxY);
         return y;
     }
 
@@ -326,6 +328,18 @@ public class BubblePetView extends View {
     public void setScreenSize(int width, int height) {
         this.screenWidth = width;
         this.screenHeight = height;
+    }
+
+    public void setBottomMargin(int margin) {
+        if (margin < 0) margin = 0;
+        if (margin != bottomMargin) {
+            bottomMargin = margin;
+            // 宠物当前位置若已超出新边界，拉回
+            int maxY = screenHeight - bottomMargin - getHeight();
+            if (currentY > maxY && maxY >= 0) {
+                updatePosition(currentX, maxY);
+            }
+        }
     }
 
     public void setExpression(String expression) {
