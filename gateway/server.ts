@@ -108,12 +108,19 @@ async function handleChat(sessionId: string, text: string, send: (msg: object) =
 const wss = new WebSocketServer({ port: PORT });
 
 wss.on("connection", (ws: WebSocket) => {
-  const sessionId = `ws-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  let sessionId = `ws-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
   console.log(`[gateway] 新连接: ${sessionId}`);
 
   ws.on("message", async (raw) => {
     try {
       const msg = JSON.parse(raw.toString());
+      // 客户端可以指定持久化 sessionId,以保留跨连接的会话历史
+      if (msg.type === "hello_ack" && typeof msg.sessionId === "string") {
+        const old = sessionId;
+        sessionId = msg.sessionId;
+        console.log(`[gateway] 会话 ID 切换: ${old} -> ${sessionId}`);
+        return;
+      }
       if (msg.type === "chat") {
         await handleChat(sessionId, msg.text, (obj) => {
           ws.send(JSON.stringify(obj));

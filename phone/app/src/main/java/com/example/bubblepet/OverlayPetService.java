@@ -29,6 +29,7 @@ public class OverlayPetService extends Service {
     private AiChatClient aiChatClient;
     private TtsPlayer ttsPlayer;
     private MessageStore messageStore;
+    private final StringBuilder pendingReply = new StringBuilder();
 
     @Override
     public void onCreate() {
@@ -45,10 +46,18 @@ public class OverlayPetService extends Service {
             if (ttsPlayer != null && sentence.ttsText != null) {
                 ttsPlayer.speak(sentence.ttsText);
             }
-            // 持久化 AI 回复，展开到全屏聊天时可看到历史
-            if (messageStore != null) {
-                String text = sentence.display.isEmpty() ? sentence.ttsText : sentence.display;
-                if (!text.isEmpty()) {
+            // 累积所有 sentence 显示到悬浮框,避免只显示最后一句
+            String text = sentence.display.isEmpty() ? sentence.ttsText : sentence.display;
+            if (!text.isEmpty()) {
+                if (pendingReply.length() > 0) {
+                    pendingReply.append("\n");
+                }
+                pendingReply.append(text);
+                if (chatBubbleView != null) {
+                    chatBubbleView.setLastMessage(pendingReply.toString());
+                }
+                // 持久化 AI 回复，展开到全屏聊天时可看到历史
+                if (messageStore != null) {
                     messageStore.append(new ChatMessage(text, false));
                 }
             }
@@ -160,9 +169,13 @@ public class OverlayPetService extends Service {
                 if (messageStore != null) {
                     messageStore.append(new ChatMessage(message, true));
                 }
-                aiChatClient.sendMessage(message, reply ->
-                        chatBubbleView.setLastMessage(reply)
-                );
+                // 清空上一轮 AI 回复的累积，开始新一轮
+                pendingReply.setLength(0);
+                if (chatBubbleView != null) {
+                    chatBubbleView.setLastMessage("");
+                }
+                // 显示由 sentenceListener 累积处理，无需 pendingListener
+                aiChatClient.sendMessage(message, null);
             }
 
             @Override

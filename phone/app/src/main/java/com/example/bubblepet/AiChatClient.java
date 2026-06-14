@@ -25,6 +25,7 @@ public class AiChatClient {
     private static final String TAG = "BubblePet";
     private static final String PREFS_NAME = "bubblepet";
     private static final String KEY_GATEWAY_URL = "gateway_url";
+    private static final String KEY_SESSION_ID = "session_id";
 
     private static final String[] FALLBACK_REPLIES = {
             "你好呀~我是你的小气泡宠物！",
@@ -63,6 +64,7 @@ public class AiChatClient {
 
     private final OkHttpClient client;
     private final String serverUrl;
+    private final SharedPreferences prefs;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private volatile WebSocket webSocket;
     private volatile boolean isConnected = false;
@@ -86,7 +88,7 @@ public class AiChatClient {
     }
 
     public AiChatClient(Context context) {
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        this.prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String savedUrl = prefs.getString(KEY_GATEWAY_URL, null);
         this.serverUrl = savedUrl != null ? savedUrl : context.getString(R.string.gateway_url);
         this.client = new OkHttpClient.Builder()
@@ -205,6 +207,20 @@ public class AiChatClient {
         public void onOpen(WebSocket webSocket, Response response) {
             Log.d(TAG, "WebSocket onOpen, connected");
             isConnected = true;
+            // 发送持久化 sessionId 让后端复用历史(没有就生成并保存)
+            String sid = prefs.getString(KEY_SESSION_ID, null);
+            if (sid == null) {
+                sid = "phone-" + System.currentTimeMillis() + "-" + (int) (Math.random() * 10000);
+                prefs.edit().putString(KEY_SESSION_ID, sid).apply();
+            }
+            try {
+                JSONObject ack = new JSONObject();
+                ack.put("type", "hello_ack");
+                ack.put("sessionId", sid);
+                webSocket.send(ack.toString());
+            } catch (JSONException e) {
+                Log.e(TAG, "发送 hello_ack 失败: " + e.getMessage());
+            }
             notifyConnectionChanged(true);
             if (pendingListener != null && pendingMessage != null) {
                 String msg = pendingMessage;
