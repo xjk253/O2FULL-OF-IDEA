@@ -22,11 +22,21 @@
         android:text="@string/btn_grant_permission"
         android:visibility="gone" />
 
+    <TextView
+        android:id="@+id/tv_connection_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/connection_checking"
+        android:textColor="#FFB300"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
     <Button
         android:id="@+id/btn_start"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
         android:text="@string/btn_start_pet"
         android:visibility="gone" />
 

@@ -20,6 +20,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String KEY_GATEWAY_URL = "gateway_url";
 
     private TextView tvStatus;
+    private TextView tvConnectionStatus;
     private Button btnPermission;
     private Button btnStart;
     private EditText etGatewayUrl;
@@ -32,6 +33,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         tvStatus = findViewById(R.id.tv_status);
+        tvConnectionStatus = findViewById(R.id.tv_connection_status);
         btnPermission = findViewById(R.id.btn_permission);
         btnStart = findViewById(R.id.btn_start);
         etGatewayUrl = findViewById(R.id.et_gateway_url);
@@ -43,12 +45,38 @@ public class MainActivity extends AppCompatActivity {
 
         loadGatewayUrl();
         checkPermissions();
+        setupConnectionStatus();
+    }
+
+    private void setupConnectionStatus() {
+        // 权限就绪后才显示连接状态
+        if (!hasOverlayPermission()) return;
+
+        tvConnectionStatus.setVisibility(View.VISIBLE);
+        AiChatClient client = AiChatClient.getInstance(this);
+        client.setOnConnectionListener(connected -> {
+            if (connected) {
+                tvConnectionStatus.setText(R.string.connection_connected);
+                tvConnectionStatus.setTextColor(0xFF2E7D32);
+            } else {
+                tvConnectionStatus.setText(R.string.connection_disconnected);
+                tvConnectionStatus.setTextColor(0xFFC62828);
+            }
+        });
+        // 已连接直接刷新一次,否则触发连接
+        if (client.isConnected()) {
+            tvConnectionStatus.setText(R.string.connection_connected);
+            tvConnectionStatus.setTextColor(0xFF2E7D32);
+        } else {
+            client.connect();
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         checkPermissions();
+        setupConnectionStatus();
     }
 
     private void checkPermissions() {
