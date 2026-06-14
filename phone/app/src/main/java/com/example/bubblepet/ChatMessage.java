@@ -7,9 +7,13 @@ public class ChatMessage {
     private final long timestamp;
 
     public ChatMessage(String text, boolean isUser) {
+        this(text, isUser, System.currentTimeMillis());
+    }
+
+    public ChatMessage(String text, boolean isUser, long timestamp) {
         this.text = text;
         this.isUser = isUser;
-        this.timestamp = System.currentTimeMillis();
+        this.timestamp = timestamp;
     }
 
     public String getText() {

@@ -7,6 +7,8 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.RectF;
 import android.os.Looper;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
@@ -28,6 +30,8 @@ public class BubblePetView extends View {
     private final Paint shinePaint;
     private final Paint eyeWhitePaint;
     private final Paint eyePupilPaint;
+    private final Paint blushPaint;
+    private final Paint mouthPaint;
 
     private float petSizePx;
     private float breathScale = 1.0f;
@@ -45,6 +49,7 @@ public class BubblePetView extends View {
     private boolean hasMoved;
     private int currentX;
     private int currentY;
+    private String expression = "neutral";
 
     public interface OnPetClickListener {
         void onPetClick(BubblePetView view);
@@ -84,6 +89,16 @@ public class BubblePetView extends View {
         eyePupilPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         eyePupilPaint.setColor(Color.parseColor("#333333"));
 
+        blushPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        blushPaint.setColor(Color.parseColor("#80FF8A95"));
+        blushPaint.setStyle(Paint.Style.FILL);
+
+        mouthPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mouthPaint.setColor(Color.parseColor("#333333"));
+        mouthPaint.setStyle(Paint.Style.STROKE);
+        mouthPaint.setStrokeWidth(dpToPx(2));
+        mouthPaint.setStrokeCap(Paint.Cap.ROUND);
+
         setLayerType(View.LAYER_TYPE_SOFTWARE, null);
     }
 
@@ -117,13 +132,140 @@ public class BubblePetView extends View {
         float leftEyeX = cx - radius * 0.25f;
         float rightEyeX = cx + radius * 0.25f;
 
-        canvas.drawCircle(leftEyeX, eyeY, eyeSize, eyeWhitePaint);
-        canvas.drawCircle(leftEyeX + eyeSize * 0.15f, eyeY, pupilSize, eyePupilPaint);
-
-        canvas.drawCircle(rightEyeX, eyeY, eyeSize, eyeWhitePaint);
-        canvas.drawCircle(rightEyeX + eyeSize * 0.15f, eyeY, pupilSize, eyePupilPaint);
+        drawExpression(canvas, cx, cy, radius, leftEyeX, rightEyeX, eyeY,
+                eyeSize, pupilSize);
 
         canvas.restore();
+    }
+
+    private void drawExpression(Canvas canvas, float cx, float cy, float radius,
+                                float leftEyeX, float rightEyeX, float eyeY,
+                                float eyeSize, float pupilSize) {
+        switch (expression) {
+            case "happy":
+                drawHappyEyes(canvas, leftEyeX, rightEyeX, eyeY, eyeSize);
+                drawSmile(canvas, cx, cy + radius * 0.25f, radius * 0.18f, true);
+                break;
+            case "excited":
+                drawRoundEyes(canvas, leftEyeX, rightEyeX, eyeY, eyeSize * 1.3f, pupilSize * 1.3f, 0, -eyeSize * 0.2f);
+                drawBlush(canvas, leftEyeX, rightEyeX, eyeY + eyeSize * 1.6f, eyeSize * 0.7f);
+                drawOpenMouth(canvas, cx, cy + radius * 0.28f, radius * 0.1f);
+                break;
+            case "shy":
+                drawRoundEyes(canvas, leftEyeX, rightEyeX, eyeY, eyeSize, pupilSize, 0, eyeSize * 0.4f);
+                drawBlush(canvas, leftEyeX, rightEyeX, eyeY + eyeSize * 1.6f, eyeSize * 0.8f);
+                drawSmile(canvas, cx, cy + radius * 0.25f, radius * 0.14f, true);
+                break;
+            case "sleepy":
+                drawLineEyes(canvas, leftEyeX, rightEyeX, eyeY, eyeSize * 1.4f, eyeSize * 0.25f);
+                drawMouthFlat(canvas, cx, cy + radius * 0.3f, radius * 0.12f);
+                break;
+            case "sad":
+                drawSadBrows(canvas, leftEyeX, rightEyeX, eyeY - eyeSize * 1.8f, eyeSize);
+                drawRoundEyes(canvas, leftEyeX, rightEyeX, eyeY, eyeSize * 0.9f, pupilSize, 0, eyeSize * 0.3f);
+                drawSmile(canvas, cx, cy + radius * 0.3f, radius * 0.14f, false);
+                break;
+            case "proud":
+                drawLineEyes(canvas, leftEyeX, rightEyeX, eyeY, eyeSize * 1.6f, eyeSize * 0.2f);
+                drawSmirk(canvas, cx, cy + radius * 0.25f, radius * 0.16f);
+                break;
+            case "surprised":
+                drawRoundEyes(canvas, leftEyeX, rightEyeX, eyeY, eyeSize * 1.5f, pupilSize * 1.2f, 0, 0);
+                drawOpenMouth(canvas, cx, cy + radius * 0.3f, radius * 0.12f);
+                break;
+            case "thinking":
+                drawRoundEyes(canvas, leftEyeX, rightEyeX, eyeY, eyeSize, pupilSize, 0, -eyeSize * 0.5f);
+                drawMouthFlat(canvas, cx, cy + radius * 0.28f, radius * 0.1f);
+                break;
+            default: // neutral
+                drawRoundEyes(canvas, leftEyeX, rightEyeX, eyeY, eyeSize, pupilSize, eyeSize * 0.15f, 0);
+                break;
+        }
+    }
+
+    private void drawRoundEyes(Canvas canvas, float leftX, float rightX, float eyeY,
+                               float eyeSize, float pupilSize,
+                               float pupilDx, float pupilDy) {
+        canvas.drawCircle(leftX, eyeY, eyeSize, eyeWhitePaint);
+        canvas.drawCircle(leftX + pupilDx, eyeY + pupilDy, pupilSize, eyePupilPaint);
+        canvas.drawCircle(rightX, eyeY, eyeSize, eyeWhitePaint);
+        canvas.drawCircle(rightX + pupilDx, eyeY + pupilDy, pupilSize, eyePupilPaint);
+    }
+
+    private void drawHappyEyes(Canvas canvas, float leftX, float rightX, float eyeY, float eyeSize) {
+        // 向上弯的弧 = ^.^
+        Path left = new Path();
+        Path right = new Path();
+        RectF leftRect = new RectF(leftX - eyeSize, eyeY - eyeSize,
+                leftX + eyeSize, eyeY + eyeSize);
+        RectF rightRect = new RectF(rightX - eyeSize, eyeY - eyeSize,
+                rightX + eyeSize, eyeY + eyeSize);
+        left.addArc(leftRect, 200, 140);
+        right.addArc(rightRect, 200, 140);
+        mouthPaint.setStyle(Paint.Style.STROKE);
+        mouthPaint.setStrokeWidth(dpToPx(2.5f));
+        canvas.drawPath(left, mouthPaint);
+        canvas.drawPath(right, mouthPaint);
+    }
+
+    private void drawLineEyes(Canvas canvas, float leftX, float rightX, float eyeY,
+                              float halfW, float halfH) {
+        mouthPaint.setStyle(Paint.Style.STROKE);
+        mouthPaint.setStrokeWidth(dpToPx(2.5f));
+        canvas.drawRoundRect(new RectF(leftX - halfW, eyeY - halfH, leftX + halfW, eyeY + halfH),
+                halfH, halfH, mouthPaint);
+        canvas.drawRoundRect(new RectF(rightX - halfW, eyeY - halfH, rightX + halfW, eyeY + halfH),
+                halfH, halfH, mouthPaint);
+    }
+
+    private void drawSadBrows(Canvas canvas, float leftX, float rightX, float browY, float eyeSize) {
+        mouthPaint.setStyle(Paint.Style.STROKE);
+        mouthPaint.setStrokeWidth(dpToPx(2));
+        // 左眉向右下倾斜 \(   右眉向左下倾斜 /
+        Path lb = new Path();
+        lb.moveTo(leftX - eyeSize, browY - eyeSize * 0.4f);
+        lb.lineTo(leftX + eyeSize, browY + eyeSize * 0.4f);
+        canvas.drawPath(lb, mouthPaint);
+        Path rb = new Path();
+        rb.moveTo(rightX - eyeSize, browY + eyeSize * 0.4f);
+        rb.lineTo(rightX + eyeSize, browY - eyeSize * 0.4f);
+        canvas.drawPath(rb, mouthPaint);
+    }
+
+    private void drawBlush(Canvas canvas, float leftX, float rightX, float y, float r) {
+        canvas.drawCircle(leftX, y, r, blushPaint);
+        canvas.drawCircle(rightX, y, r, blushPaint);
+    }
+
+    private void drawSmile(Canvas canvas, float cx, float cy, float halfW, boolean happy) {
+        mouthPaint.setStyle(Paint.Style.STROKE);
+        mouthPaint.setStrokeWidth(dpToPx(2.5f));
+        RectF rect = new RectF(cx - halfW, cy - halfW * 0.6f, cx + halfW, cy + halfW * 0.8f);
+        canvas.drawArc(rect, happy ? 20f : 200f, 140f, false, mouthPaint);
+    }
+
+    private void drawSmirk(Canvas canvas, float cx, float cy, float halfW) {
+        mouthPaint.setStyle(Paint.Style.STROKE);
+        mouthPaint.setStrokeWidth(dpToPx(2.5f));
+        Path p = new Path();
+        p.moveTo(cx - halfW, cy);
+        p.quadTo(cx, cy - halfW * 0.5f, cx + halfW, cy + halfW * 0.1f);
+        canvas.drawPath(p, mouthPaint);
+    }
+
+    private void drawMouthFlat(Canvas canvas, float cx, float cy, float halfW) {
+        mouthPaint.setStyle(Paint.Style.STROKE);
+        mouthPaint.setStrokeWidth(dpToPx(2.5f));
+        canvas.drawLine(cx - halfW, cy, cx + halfW, cy, mouthPaint);
+    }
+
+    private void drawOpenMouth(Canvas canvas, float cx, float cy, float r) {
+        mouthPaint.setStyle(Paint.Style.FILL);
+        mouthPaint.setColor(Color.parseColor("#5D4037"));
+        canvas.drawCircle(cx, cy, r, mouthPaint);
+        // 恢复
+        mouthPaint.setStyle(Paint.Style.STROKE);
+        mouthPaint.setColor(Color.parseColor("#333333"));
     }
 
     @Override
@@ -185,6 +327,24 @@ public class BubblePetView extends View {
         this.screenWidth = width;
         this.screenHeight = height;
     }
+
+    public void setExpression(String expression) {
+        String expr = expression == null ? "neutral" : expression;
+        if (!expr.equals(this.expression)) {
+            this.expression = expr;
+            invalidate();
+            // 4 秒后自动回到中性,避免长期挂着夸张表情
+            handler.removeCallbacks(resetExpressionRunnable);
+            handler.postDelayed(resetExpressionRunnable, 4000);
+        }
+    }
+
+    private final Runnable resetExpressionRunnable = () -> {
+        if (!"neutral".equals(expression)) {
+            expression = "neutral";
+            invalidate();
+        }
+    };
 
     public void setInitialPosition(int x, int y) {
         currentX = x;

@@ -29,6 +29,16 @@ public class ChatActivity extends AppCompatActivity {
     private ChatAdapter adapter;
     private final List<ChatMessage> messages = new ArrayList<>();
     private AiChatClient aiChatClient;
+    private MessageStore messageStore;
+
+    private final AiChatClient.OnSentenceListener sentenceListener = sentence -> {
+        String text = sentence.display.isEmpty() ? sentence.ttsText : sentence.display;
+        if (text.isEmpty()) return;
+        messages.add(new ChatMessage(text, false));
+        adapter.notifyItemInserted(messages.size() - 1);
+        rvChat.scrollToPosition(messages.size() - 1);
+        messageStore.save(messages);
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,10 +51,19 @@ public class ChatActivity extends AppCompatActivity {
 
         aiChatClient = AiChatClient.getInstance(this);
         aiChatClient.connect();
+        messageStore = new MessageStore(this);
 
+        // 加载历史
+        messages.addAll(messageStore.load());
         adapter = new ChatAdapter(messages);
         rvChat.setLayoutManager(new LinearLayoutManager(this));
         rvChat.setAdapter(adapter);
+        if (!messages.isEmpty()) {
+            rvChat.scrollToPosition(messages.size() - 1);
+        }
+
+        // 接收每一句完整 sentence,逐条插入到聊天列表
+        aiChatClient.addOnSentenceListener(sentenceListener);
 
         btnSend.setOnClickListener(v -> {
             String msg = etChatInput.getText().toString().trim();
@@ -73,12 +92,10 @@ public class ChatActivity extends AppCompatActivity {
         messages.add(new ChatMessage(text, true));
         adapter.notifyItemInserted(messages.size() - 1);
         rvChat.scrollToPosition(messages.size() - 1);
+        messageStore.save(messages);
 
-        aiChatClient.sendMessage(text, reply -> {
-            messages.add(new ChatMessage(reply, false));
-            adapter.notifyItemInserted(messages.size() - 1);
-            rvChat.scrollToPosition(messages.size() - 1);
-        });
+        // AI 回复通过 sentenceListener 逐条返回，无需在此回调
+        aiChatClient.sendMessage(text, null);
     }
 
     private static class ChatAdapter extends RecyclerView.Adapter<ChatAdapter.ViewHolder> {
@@ -139,6 +156,9 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (aiChatClient != null) {
+            aiChatClient.removeOnSentenceListener(sentenceListener);
+        }
         // 单例由所有组件共享，不在这里销毁
         aiChatClient = null;
     }

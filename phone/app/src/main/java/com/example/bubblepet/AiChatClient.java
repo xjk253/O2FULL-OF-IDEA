@@ -9,6 +9,8 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
@@ -43,12 +45,29 @@ public class AiChatClient {
         void onConnectionChanged(boolean connected);
     }
 
+    public interface OnSentenceListener {
+        void onSentence(Sentence sentence);
+    }
+
+    public static class Sentence {
+        public final String display;
+        public final String ttsText;
+        public final String expression;
+
+        public Sentence(String display, String ttsText, String expression) {
+            this.display = display;
+            this.ttsText = ttsText;
+            this.expression = expression;
+        }
+    }
+
     private final OkHttpClient client;
     private final String serverUrl;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private volatile WebSocket webSocket;
     private volatile boolean isConnected = false;
     private OnConnectionListener connectionListener;
+    private final List<OnSentenceListener> sentenceListeners = new CopyOnWriteArrayList<>();
     private volatile OnResponseListener pendingListener;
     private volatile String pendingMessage;
     private int lastFallbackIndex = -1;
@@ -126,6 +145,16 @@ public class AiChatClient {
         this.connectionListener = listener;
     }
 
+    public void addOnSentenceListener(OnSentenceListener listener) {
+        if (listener != null && !sentenceListeners.contains(listener)) {
+            sentenceListeners.add(listener);
+        }
+    }
+
+    public void removeOnSentenceListener(OnSentenceListener listener) {
+        sentenceListeners.remove(listener);
+    }
+
     public boolean isConnected() {
         return isConnected;
     }
@@ -161,6 +190,15 @@ public class AiChatClient {
         }
     }
 
+    private static String stripTags(String s) {
+        if (s == null) return "";
+        return s
+                .replaceAll("<think\\b[^>]*>[\\s\\S]*?</think\\b[^>]*>", "")
+                .replaceAll("<think\\b[^>]*/>", "")
+                .replaceAll("\\[[a-zA-Z_]+\\]", "")
+                .trim();
+    }
+
     private class BubbleWebSocketListener extends WebSocketListener {
 
         @Override
@@ -190,13 +228,23 @@ public class AiChatClient {
                 String type = json.optString("type");
 
                 if ("sentence".equals(type)) {
-                    String raw = json.optString("text", "");
-                    final String sentenceText = raw.replaceAll("<think[^>]*>[\\s\\S]*?</think>", "")
-                            .replaceAll("\\[[a-zA-Z_]+\\]", "").trim();
-                    if (sentenceText.isEmpty()) return;
+                    String ttsText = json.optString("text", "");
+                    String displayRaw = json.optString("display", "");
+                    String expression = json.isNull("expression") ? null
+                            : json.optString("expression", null);
+
+                    // 显示文本优先用 display,缺失时回退到 text;剥离 [tag] 与 <think>
+                    String display = stripTags(displayRaw.isEmpty() ? ttsText : displayRaw);
+                    String cleanTts = stripTags(ttsText);
+                    if (display.isEmpty() && cleanTts.isEmpty()) return;
+
+                    final Sentence sentence = new Sentence(display, cleanTts, expression);
                     mainHandler.post(() -> {
+                        for (OnSentenceListener l : sentenceListeners) {
+                            l.onSentence(sentence);
+                        }
                         if (pendingListener != null) {
-                            pendingListener.onResponse(sentenceText);
+                            pendingListener.onResponse(display.isEmpty() ? cleanTts : display);
                         }
                     });
                 } else if ("done".equals(type)) {

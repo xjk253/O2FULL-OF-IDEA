@@ -27,6 +27,7 @@ public class OverlayPetService extends Service {
     private WindowManager.LayoutParams chatBubbleParams;
     private boolean isChatVisible = false;
     private AiChatClient aiChatClient;
+    private TtsPlayer ttsPlayer;
 
     @Override
     public void onCreate() {
@@ -34,6 +35,15 @@ public class OverlayPetService extends Service {
         windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
         aiChatClient = AiChatClient.getInstance(this);
         aiChatClient.connect();
+        ttsPlayer = new TtsPlayer(this);
+        aiChatClient.addOnSentenceListener(sentence -> {
+            if (petView != null && sentence.expression != null) {
+                petView.setExpression(sentence.expression);
+            }
+            if (ttsPlayer != null && sentence.ttsText != null) {
+                ttsPlayer.speak(sentence.ttsText);
+            }
+        });
         createNotificationChannel();
         startForeground(NOTIFICATION_ID, buildNotification());
         addPetToWindow();
@@ -205,6 +215,10 @@ public class OverlayPetService extends Service {
         }
         hideChatBubble();
         // 单例由所有组件共享，服务销毁时不 disconnect，保持连接给 ChatActivity 复用
+        if (ttsPlayer != null) {
+            ttsPlayer.destroy();
+            ttsPlayer = null;
+        }
         aiChatClient = null;
     }
 
