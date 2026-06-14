@@ -26,6 +26,7 @@ interface PreProcessDeps {
   emoMap: EmoMap;
   tools: unknown[];
   warmMemory: { getContext(): string } | null;
+  ragMemory: { retrieve(query: string): string } | null;
 }
 
 export function preprocess(
@@ -48,9 +49,11 @@ export function preprocess(
   // Step 4: retrieve memory
   const history = deps.memory.getRecent(input.sessionId, 10);
 
-  // Step 5: build system prompt (with warm memory if available)
+  // Step 5: build system prompt (with warm memory + RAG memory if available)
   const warmContext = deps.warmMemory?.getContext() ?? "";
-  const systemPrompt = deps.promptFactory.build(deps.character, state, deps.emoMap, warmContext);
+  const ragContext = deps.ragMemory ? deps.ragMemory.retrieve(input.text) : "";
+  const extraContext = [warmContext, ragContext].filter((s) => s.length > 0).join("\n\n");
+  const systemPrompt = deps.promptFactory.build(deps.character, state, deps.emoMap, extraContext);
 
   // Step 6: assemble
   return {

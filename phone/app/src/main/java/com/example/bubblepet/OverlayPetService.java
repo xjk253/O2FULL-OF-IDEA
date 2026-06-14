@@ -28,7 +28,6 @@ public class OverlayPetService extends Service {
     private boolean isChatVisible = false;
     private AiChatClient aiChatClient;
     private TtsPlayer ttsPlayer;
-    private MessageStore messageStore;
     private final StringBuilder pendingReply = new StringBuilder();
 
     @Override
@@ -38,7 +37,9 @@ public class OverlayPetService extends Service {
         aiChatClient = AiChatClient.getInstance(this);
         aiChatClient.connect();
         ttsPlayer = new TtsPlayer(this);
-        messageStore = new MessageStore(this);
+        // 启动宠物 = 新会话，清空内存
+        SessionMessages.clear();
+        pendingReply.setLength(0);
         aiChatClient.addOnSentenceListener(sentence -> {
             if (petView != null && sentence.expression != null) {
                 petView.setExpression(sentence.expression);
@@ -56,10 +57,8 @@ public class OverlayPetService extends Service {
                 if (chatBubbleView != null) {
                     chatBubbleView.setLastMessage(pendingReply.toString());
                 }
-                // 持久化 AI 回复，展开到全屏聊天时可看到历史
-                if (messageStore != null) {
-                    messageStore.append(new ChatMessage(text, false));
-                }
+                // 加入当前会话内存,ChatActivity 展开时可看到
+                SessionMessages.add(new ChatMessage(text, false));
             }
         });
         createNotificationChannel();
@@ -165,10 +164,8 @@ public class OverlayPetService extends Service {
         chatBubbleView.setOnChatListener(new ChatBubbleView.OnChatListener() {
             @Override
             public void onSendMessage(String message) {
-                // 持久化用户消息
-                if (messageStore != null) {
-                    messageStore.append(new ChatMessage(message, true));
-                }
+                // 加入当前会话内存
+                SessionMessages.add(new ChatMessage(message, true));
                 // 清空上一轮 AI 回复的累积，开始新一轮
                 pendingReply.setLength(0);
                 if (chatBubbleView != null) {
