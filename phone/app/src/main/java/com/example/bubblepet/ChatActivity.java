@@ -31,7 +31,6 @@ public class ChatActivity extends AppCompatActivity {
     private ChatAdapter adapter;
     private final List<ChatMessage> messages = new ArrayList<>();
     private AiChatClient aiChatClient;
-    private MessageStore messageStore;
 
     private final AiChatClient.OnSentenceListener sentenceListener = sentence -> {
         String text = sentence.display.isEmpty() ? sentence.ttsText : sentence.display;
@@ -39,14 +38,12 @@ public class ChatActivity extends AppCompatActivity {
         messages.add(new ChatMessage(text, false));
         adapter.notifyItemInserted(messages.size() - 1);
         rvChat.scrollToPosition(messages.size() - 1);
-        // 持久化由 OverlayPetService 统一负责，避免重复保存
     };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         // API 35+ 默认 edge-to-edge，需显式处理 IME insets
-        // 用 WindowInsetsCompat 监听键盘高度，给根布局加底部 padding
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_chat);
 
@@ -69,10 +66,9 @@ public class ChatActivity extends AppCompatActivity {
 
         aiChatClient = AiChatClient.getInstance(this);
         aiChatClient.connect();
-        messageStore = new MessageStore(this);
 
-        // 加载历史
-        messages.addAll(messageStore.load());
+        // 从当前会话内存加载（启动宠物后的消息）
+        messages.addAll(SessionMessages.get());
         adapter = new ChatAdapter(messages);
         rvChat.setLayoutManager(new LinearLayoutManager(this));
         rvChat.setAdapter(adapter);
@@ -100,10 +96,11 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void sendMessage(String text) {
-        messages.add(new ChatMessage(text, true));
+        ChatMessage msg = new ChatMessage(text, true);
+        messages.add(msg);
+        SessionMessages.add(msg);
         adapter.notifyItemInserted(messages.size() - 1);
         rvChat.scrollToPosition(messages.size() - 1);
-        messageStore.append(messages.get(messages.size() - 1));
 
         // AI 回复通过 sentenceListener 逐条返回，无需在此回调
         aiChatClient.sendMessage(text, null);

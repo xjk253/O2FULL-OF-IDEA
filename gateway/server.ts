@@ -11,6 +11,9 @@ import { createTools } from "../agent/tools";
 import { checkProactive, toSentenceOutput } from "../agent/triggers/proactive";
 import { createWarmMemory } from "../agent/memory/warm";
 import { save as saveL1, getRecent } from "../agent/memory/l1";
+import { summarize } from "../agent/memory/rag/summarizer";
+import { retrieve as ragRetrieve } from "../agent/memory/rag/retriever";
+import { save as ragSave } from "../agent/memory/rag/store";
 import type { ToolContext } from "../agent/tools/types";
 
 const PORT = 8080;
@@ -21,6 +24,8 @@ const postprocess = composePipeline(emoMap);
 const warmMemory = createWarmMemory("../../.bubble");
 
 const stateMachines = new Map<string, PetStateMachine>();
+// 每个会话已总结的消息条数（避免重复总结）
+const summarizedCount = new Map<string, number>();
 
 function getMachine(sessionId: string): PetStateMachine {
   if (!stateMachines.has(sessionId)) {
@@ -53,6 +58,7 @@ async function handleChat(sessionId: string, text: string, send: (msg: object) =
       emoMap,
       tools,
       warmMemory,
+      ragMemory: { retrieve: (q: string) => ragRetrieve(q) },
     },
   );
 
@@ -131,8 +137,29 @@ wss.on("connection", (ws: WebSocket) => {
     }
   });
 
-  ws.on("close", () => {
+  ws.on("close", async () => {
     console.log(`[gateway] 断开: ${sessionId}`);
+    // 取未总结的消息，调 LLM 总结后保存到 RAG
+    try {
+      const allMessages = getRecent(sessionId, 9999);
+      const alreadySummarized = summarizedCount.get(sessionId) ?? 0;
+      const unsummarized = allMessages.slice(alreadySummarized);
+      if (unsummarized.length >= 2) {
+        console.log(`[rag] 开始总结 ${unsummarized.length} 条未总结消息...`);
+        const entry = await summarize(sessionId, unsummarized);
+        if (entry) {
+          ragSave(entry);
+          summarizedCount.set(sessionId, allMessages.length);
+          console.log(`[rag] ✅ 已保存会话总结: "${entry.summary.slice(0, 60)}..." (${entry.keywords.length} 关键词)`);
+        } else {
+          console.log(`[rag] 总结失败，未保存`);
+        }
+      } else {
+        console.log(`[rag] 未总结消息不足 ${unsummarized.length} 条，跳过`);
+      }
+    } catch (err) {
+      console.error(`[rag] 断开总结异常: ${String(err)}`);
+    }
   });
 
   ws.send(JSON.stringify({ type: "hello", sessionId }));

@@ -31,6 +31,8 @@ function makeDeps() {
     character,
     emoMap,
     tools: [],
+    warmMemory: null,
+    ragMemory: { retrieve: () => "" },
   };
 }
 
