@@ -34,10 +34,12 @@ public class OverlayPetService extends Service {
     private TtsPlayer ttsPlayer;
     private final StringBuilder pendingReply = new StringBuilder();
     private final Handler imeHandler = new Handler(Looper.getMainLooper());
+    private ForegroundAppDetector foregroundDetector;
     private final Runnable imeCheckRunnable = new Runnable() {
         @Override
         public void run() {
             detectImeAndUpdateMargin();
+            detectForegroundAndUpdateMode();
             imeHandler.postDelayed(this, 500);
         }
     };
@@ -49,6 +51,7 @@ public class OverlayPetService extends Service {
         aiChatClient = AiChatClient.getInstance(this);
         aiChatClient.connect();
         ttsPlayer = new TtsPlayer(this);
+        foregroundDetector = new ForegroundAppDetector(this);
         // 启动宠物 = 新会话，清空内存
         SessionMessages.clear();
         pendingReply.setLength(0);
@@ -121,6 +124,11 @@ public class OverlayPetService extends Service {
 
         petView = new BubblePetView(this);
         petView.setScreenSize(screenWidth, screenHeight);
+        // 松手时实时查询前台状态（避免 edgeMode 轮询延迟导致误贴边）
+        petView.setOnReleaseListener(() -> {
+            if (foregroundDetector == null) return false;
+            return !foregroundDetector.isOnLauncher();
+        });
         petView.setOnPetClickListener(view -> toggleChatBubble());
         petView.setOnPositionChangedListener((x, y) -> {
             petParams.x = x;
@@ -179,6 +187,12 @@ public class OverlayPetService extends Service {
             }
         }
         petView.setBottomMargin(imeHeight);
+    }
+
+    private void detectForegroundAndUpdateMode() {
+        if (petView == null || foregroundDetector == null) return;
+        boolean onLauncher = foregroundDetector.isOnLauncher();
+        petView.setEdgeMode(!onLauncher);
     }
 
     private void toggleChatBubble() {

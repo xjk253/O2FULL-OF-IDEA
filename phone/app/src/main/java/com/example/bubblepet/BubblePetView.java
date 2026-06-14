@@ -44,6 +44,7 @@ public class BubblePetView extends View {
     private int screenWidth;
     private int screenHeight;
     private int bottomMargin = 0;
+    private boolean edgeMode = false;
     private boolean isDragging = false;
     private float downRawX;
     private float downRawY;
@@ -60,8 +61,17 @@ public class BubblePetView extends View {
         void onPositionChanged(int x, int y);
     }
 
+    /**
+     * 松手时实时查询：是否需要贴边。
+     * 由 OverlayPetService 实现,实时查 ForegroundAppDetector。
+     */
+    public interface OnReleaseListener {
+        boolean shouldSnapToEdge();
+    }
+
     private OnPetClickListener clickListener;
     private OnPositionChangedListener positionListener;
+    private OnReleaseListener releaseListener;
 
     public BubblePetView(Context context) {
         this(context, null);
@@ -293,12 +303,15 @@ public class BubblePetView extends View {
                 return true;
             case MotionEvent.ACTION_UP:
                 isDragging = false;
+                boolean needSnap = releaseListener != null && releaseListener.shouldSnapToEdge();
                 if (!hasMoved) {
                     performClick();
                 }
                 startBreath();
                 scheduleWander();
-                snapToEdge();
+                if (needSnap) {
+                    snapToEdge();
+                }
                 return true;
         }
         return super.onTouchEvent(event);
@@ -308,6 +321,15 @@ public class BubblePetView extends View {
         if (x < 0) return 0;
         if (x + getWidth() > screenWidth) return screenWidth - getWidth();
         return x;
+    }
+
+    /**
+     * 贴边模式专用：强制 X 到最近的左/右边缘。
+     * 仅在非拖动状态(松手后贴边、游走目标)使用。
+     */
+    private int clampXToEdge(int x) {
+        float centerX = x + getWidth() / 2f;
+        return centerX < screenWidth / 2f ? 0 : screenWidth - getWidth();
     }
 
     private int clampY(int y) {
@@ -339,6 +361,24 @@ public class BubblePetView extends View {
             if (currentY > maxY && maxY >= 0) {
                 updatePosition(currentX, maxY);
             }
+        }
+    }
+
+    /**
+     * 设置是否为贴边模式。
+     * true：宠物只能贴左/右边缘活动（在其他 app 上层时），且停止自动游走
+     * false：宠物全屏自由活动（在桌面时），恢复自动游走
+     */
+    public void setEdgeMode(boolean enabled) {
+        if (this.edgeMode == enabled) return;
+        this.edgeMode = enabled;
+        if (enabled) {
+            // 进入贴边模式：停止游走，滑到最近边缘
+            cancelWander();
+            snapToEdge();
+        } else {
+            // 回到桌面：恢复游走
+            scheduleWander();
         }
     }
 
@@ -412,15 +452,25 @@ public class BubblePetView extends View {
         if (isDragging) return;
         final int startX = currentX;
         final int startY = currentY;
-        final int targetX = clampX((int) (Math.random() * (screenWidth - getWidth())));
-        final int targetY = clampY((int) (Math.random() * (screenHeight - getHeight())));
+        // 贴边模式下目标 X 锁定在当前边缘，只在 Y 轴上下游走
+        final int targetX;
+        final int targetY;
+        if (edgeMode) {
+            targetX = clampXToEdge(startX); // 保持当前边缘
+            targetY = clampY((int) (Math.random() * (screenHeight - getHeight())));
+        } else {
+            targetX = clampX((int) (Math.random() * (screenWidth - getWidth())));
+            targetY = clampY((int) (Math.random() * (screenHeight - getHeight())));
+        }
 
         wanderAnimator = ValueAnimator.ofFloat(0f, 1f);
         wanderAnimator.setDuration(WANDER_DURATION_MS);
         wanderAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
         wanderAnimator.addUpdateListener(anim -> {
             float fraction = (float) anim.getAnimatedValue();
-            int x = clampX((int) (startX + (targetX - startX) * fraction));
+            int x = edgeMode
+                    ? clampXToEdge((int) (startX + (targetX - startX) * fraction))
+                    : clampX((int) (startX + (targetX - startX) * fraction));
             int y = clampY((int) (startY + (targetY - startY) * fraction));
             updatePosition(x, y);
         });
@@ -460,6 +510,10 @@ public class BubblePetView extends View {
 
     public void setOnPositionChangedListener(OnPositionChangedListener listener) {
         this.positionListener = listener;
+    }
+
+    public void setOnReleaseListener(OnReleaseListener listener) {
+        this.releaseListener = listener;
     }
 
     @Override
