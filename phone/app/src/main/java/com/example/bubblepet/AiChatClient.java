@@ -241,10 +241,21 @@ public class AiChatClient {
                     final Sentence sentence = new Sentence(display, cleanTts, expression);
                     mainHandler.post(() -> {
                         for (OnSentenceListener l : sentenceListeners) {
-                            l.onSentence(sentence);
+                            try {
+                                l.onSentence(sentence);
+                            } catch (Exception e) {
+                                Log.e(TAG, "sentenceListener 抛异常: " + e.getMessage(), e);
+                            }
                         }
                         if (pendingListener != null) {
-                            pendingListener.onResponse(display.isEmpty() ? cleanTts : display);
+                            Log.d(TAG, "触发 pendingListener.onResponse: " + display);
+                            try {
+                                pendingListener.onResponse(display.isEmpty() ? cleanTts : display);
+                            } catch (Exception e) {
+                                Log.e(TAG, "pendingListener 抛异常: " + e.getMessage(), e);
+                            }
+                        } else {
+                            Log.d(TAG, "pendingListener 为 null,跳过 onResponse");
                         }
                     });
                 } else if ("done".equals(type)) {

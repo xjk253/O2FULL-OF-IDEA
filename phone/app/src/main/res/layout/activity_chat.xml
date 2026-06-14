@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root_chat"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/white"
@@ -18,7 +19,10 @@
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="8dp">
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp">
 
         <EditText
             android:id="@+id/et_chat_input"
@@ -26,9 +30,10 @@
             android:layout_height="48dp"
             android:layout_weight="1"
             android:background="@android:drawable/edit_text"
+            android:gravity="center_vertical"
             android:hint="@string/chat_hint"
             android:inputType="text"
-            android:maxLines="2"
+            android:maxLines="1"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
             android:textSize="15sp" />

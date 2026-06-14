@@ -83,8 +83,13 @@ public class ChatBubbleView extends LinearLayout {
     }
 
     public void setLastMessage(String message) {
+        android.util.Log.d("BubblePet", "ChatBubbleView.setLastMessage: " + message
+                + " tvLastMessage=" + (tvLastMessage == null ? "null" : "ok"));
+        if (tvLastMessage == null) return;
         tvLastMessage.setText(message);
         tvLastMessage.setVisibility(VISIBLE);
+        tvLastMessage.setTextColor(0xFF000000);
+        requestLayout();
     }
 
     public void setOnChatListener(OnChatListener listener) {

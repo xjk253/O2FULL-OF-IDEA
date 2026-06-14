@@ -1,13 +1,11 @@
 package com.example.bubblepet;
 
-import android.content.Context;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -15,6 +13,10 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -37,13 +39,29 @@ public class ChatActivity extends AppCompatActivity {
         messages.add(new ChatMessage(text, false));
         adapter.notifyItemInserted(messages.size() - 1);
         rvChat.scrollToPosition(messages.size() - 1);
-        messageStore.save(messages);
+        // 持久化由 OverlayPetService 统一负责，避免重复保存
     };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // API 35+ 默认 edge-to-edge，需显式处理 IME insets
+        // 用 WindowInsetsCompat 监听键盘高度，给根布局加底部 padding
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(R.layout.activity_chat);
+
+        View root = findViewById(R.id.root_chat);
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+            Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(
+                    systemBars.left,
+                    systemBars.top,
+                    systemBars.right,
+                    Math.max(ime.bottom, systemBars.bottom)
+            );
+            return WindowInsetsCompat.CONSUMED;
+        });
 
         rvChat = findViewById(R.id.rv_chat);
         etChatInput = findViewById(R.id.et_chat_input);
@@ -77,22 +95,15 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // 从 Service 用 FLAG_ACTIVITY_NEW_TASK 启动时，系统不会自动弹键盘
-        // 需要主动请求焦点 + 显示输入法
-        etChatInput.postDelayed(() -> {
-            etChatInput.requestFocus();
-            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-            if (imm != null) {
-                imm.showSoftInput(etChatInput, InputMethodManager.SHOW_IMPLICIT);
-            }
-        }, 200);
+        // 不再强制弹键盘，避免布局跳变导致输入框位置不一致
+        // 用户点击输入框时系统会自然弹出，adjustResize 会正确处理布局
     }
 
     private void sendMessage(String text) {
         messages.add(new ChatMessage(text, true));
         adapter.notifyItemInserted(messages.size() - 1);
         rvChat.scrollToPosition(messages.size() - 1);
-        messageStore.save(messages);
+        messageStore.append(messages.get(messages.size() - 1));
 
         // AI 回复通过 sentenceListener 逐条返回，无需在此回调
         aiChatClient.sendMessage(text, null);
@@ -135,7 +146,14 @@ public class ChatActivity extends AppCompatActivity {
                 holder.tvMessage.setTextColor(0xFF000000);
                 lp.gravity = Gravity.START;
             }
-            holder.itemView.setLayoutParams(lp);
+            // gravity 要设在 TextView 上，不是 itemView 上
+            // itemView 的 LayoutParams 属于 RecyclerView 不支持 gravity
+            holder.tvMessage.setLayoutParams(lp);
+            // itemView 始终填满宽度，让 TextView 能在内部靠左或靠右
+            holder.itemView.setLayoutParams(new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            ));
         }
 
         @Override
