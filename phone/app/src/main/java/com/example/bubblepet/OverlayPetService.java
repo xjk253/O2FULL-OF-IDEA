@@ -8,9 +8,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.PixelFormat;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.Gravity;
+import android.view.WindowInsets;
 import android.view.WindowManager;
 
 import androidx.annotation.Nullable;
@@ -29,6 +33,16 @@ public class OverlayPetService extends Service {
     private AiChatClient aiChatClient;
     private TtsPlayer ttsPlayer;
     private final StringBuilder pendingReply = new StringBuilder();
+    private final Handler imeHandler = new Handler(Looper.getMainLooper());
+    private ForegroundAppDetector foregroundDetector;
+    private final Runnable imeCheckRunnable = new Runnable() {
+        @Override
+        public void run() {
+            detectImeAndUpdateMargin();
+            detectForegroundAndUpdateMode();
+            imeHandler.postDelayed(this, 500);
+        }
+    };
 
     @Override
     public void onCreate() {
@@ -37,6 +51,7 @@ public class OverlayPetService extends Service {
         aiChatClient = AiChatClient.getInstance(this);
         aiChatClient.connect();
         ttsPlayer = new TtsPlayer(this);
+        foregroundDetector = new ForegroundAppDetector(this);
         // 启动宠物 = 新会话，清空内存
         SessionMessages.clear();
         pendingReply.setLength(0);
@@ -109,6 +124,11 @@ public class OverlayPetService extends Service {
 
         petView = new BubblePetView(this);
         petView.setScreenSize(screenWidth, screenHeight);
+        // 松手时实时查询前台状态（避免 edgeMode 轮询延迟导致误贴边）
+        petView.setOnReleaseListener(() -> {
+            if (foregroundDetector == null) return false;
+            return !foregroundDetector.isOnLauncher();
+        });
         petView.setOnPetClickListener(view -> toggleChatBubble());
         petView.setOnPositionChangedListener((x, y) -> {
             petParams.x = x;
@@ -148,6 +168,31 @@ public class OverlayPetService extends Service {
             petView.startBreath();
             petView.scheduleWander();
         });
+
+        // 启动键盘检测，有键盘时宠物避开键盘区域
+        imeHandler.post(imeCheckRunnable);
+    }
+
+    private void detectImeAndUpdateMargin() {
+        if (petView == null) return;
+        int imeHeight = 0;
+        // API 30+ 可通过 WindowMetrics 获取 IME 高度
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                WindowInsets insets = windowManager.getCurrentWindowMetrics().getWindowInsets();
+                android.graphics.Insets ime = insets.getInsets(WindowInsets.Type.ime());
+                imeHeight = ime.bottom;
+            } catch (Exception e) {
+                Log.w("BubblePet", "IME 检测异常: " + e.getMessage());
+            }
+        }
+        petView.setBottomMargin(imeHeight);
+    }
+
+    private void detectForegroundAndUpdateMode() {
+        if (petView == null || foregroundDetector == null) return;
+        boolean onLauncher = foregroundDetector.isOnLauncher();
+        petView.setEdgeMode(!onLauncher);
     }
 
     private void toggleChatBubble() {
@@ -231,6 +276,7 @@ public class OverlayPetService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        imeHandler.removeCallbacks(imeCheckRunnable);
         if (petView != null) {
             petView.destroy();
             windowManager.removeView(petView);

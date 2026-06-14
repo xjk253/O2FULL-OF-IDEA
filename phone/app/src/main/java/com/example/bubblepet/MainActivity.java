@@ -21,8 +21,10 @@ public class MainActivity extends AppCompatActivity {
 
     private TextView tvStatus;
     private TextView tvConnectionStatus;
+    private TextView tvUsageAccessDesc;
     private Button btnPermission;
     private Button btnStart;
+    private Button btnUsageAccess;
     private EditText etGatewayUrl;
     private Button btnSaveUrl;
     private boolean isServiceRunning = false;
@@ -34,18 +36,23 @@ public class MainActivity extends AppCompatActivity {
 
         tvStatus = findViewById(R.id.tv_status);
         tvConnectionStatus = findViewById(R.id.tv_connection_status);
+        tvUsageAccessDesc = findViewById(R.id.tv_usage_access_desc);
         btnPermission = findViewById(R.id.btn_permission);
         btnStart = findViewById(R.id.btn_start);
+        btnUsageAccess = findViewById(R.id.btn_usage_access);
         etGatewayUrl = findViewById(R.id.et_gateway_url);
         btnSaveUrl = findViewById(R.id.btn_save_url);
 
         btnPermission.setOnClickListener(v -> openOverlaySettings());
         btnStart.setOnClickListener(v -> togglePetService());
         btnSaveUrl.setOnClickListener(v -> saveGatewayUrl());
+        btnUsageAccess.setOnClickListener(v ->
+                ForegroundAppDetector.openUsageAccessSettings(this));
 
         loadGatewayUrl();
         checkPermissions();
         setupConnectionStatus();
+        checkUsageAccess();
     }
 
     private void setupConnectionStatus() {
@@ -77,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         checkPermissions();
         setupConnectionStatus();
+        checkUsageAccess();
     }
 
     private void checkPermissions() {
@@ -124,6 +132,17 @@ public class MainActivity extends AppCompatActivity {
             btnStart.setText(R.string.btn_stop_pet);
         } else {
             btnStart.setText(R.string.btn_start_pet);
+        }
+    }
+
+    private void checkUsageAccess() {
+        ForegroundAppDetector detector = new ForegroundAppDetector(this);
+        if (detector.hasPermission()) {
+            btnUsageAccess.setVisibility(View.GONE);
+            tvUsageAccessDesc.setText(R.string.usage_access_granted);
+            tvUsageAccessDesc.setTextColor(0xFF2E7D32);
+        } else {
+            btnUsageAccess.setVisibility(View.VISIBLE);
         }
     }
 
