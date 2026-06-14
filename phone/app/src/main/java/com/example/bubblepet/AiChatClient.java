@@ -1,6 +1,7 @@
 package com.example.bubblepet;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -20,6 +21,8 @@ import okio.ByteString;
 public class AiChatClient {
 
     private static final String TAG = "BubblePet";
+    private static final String PREFS_NAME = "bubblepet";
+    private static final String KEY_GATEWAY_URL = "gateway_url";
 
     private static final String[] FALLBACK_REPLIES = {
             "你好呀~我是你的小气泡宠物！",
@@ -50,8 +53,23 @@ public class AiChatClient {
     private volatile String pendingMessage;
     private int lastFallbackIndex = -1;
 
+    private static volatile AiChatClient instance;
+
+    public static AiChatClient getInstance(Context context) {
+        if (instance == null) {
+            synchronized (AiChatClient.class) {
+                if (instance == null) {
+                    instance = new AiChatClient(context.getApplicationContext());
+                }
+            }
+        }
+        return instance;
+    }
+
     public AiChatClient(Context context) {
-        this.serverUrl = context.getString(R.string.gateway_url);
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String savedUrl = prefs.getString(KEY_GATEWAY_URL, null);
+        this.serverUrl = savedUrl != null ? savedUrl : context.getString(R.string.gateway_url);
         this.client = new OkHttpClient.Builder()
                 .connectTimeout(5, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.MINUTES)
@@ -60,7 +78,10 @@ public class AiChatClient {
                 .build();
     }
 
-    public void connect() {
+    public synchronized void connect() {
+        if (isConnected && webSocket != null) {
+            return;
+        }
         Log.d(TAG, "AiChatClient connecting to: " + serverUrl);
         Request request = new Request.Builder()
                 .url(serverUrl)

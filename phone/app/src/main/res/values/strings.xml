@@ -17,4 +17,9 @@
     <string name="gateway_connected">已连接</string>
     <string name="gateway_disconnected">未连接</string>
     <string name="gateway_error">连接失败，使用离线模式</string>
+    <string name="gateway_settings_title">网关地址（用于连接 AI 大脑）</string>
+    <string name="gateway_settings_hint">ws://IP:端口</string>
+    <string name="gateway_save">保存地址</string>
+    <string name="gateway_url_saved">地址已保存，下次启动宠物生效</string>
+    <string name="gateway_url_invalid">地址不能为空</string>
 </resources>

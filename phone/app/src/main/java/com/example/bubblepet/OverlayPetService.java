@@ -32,7 +32,7 @@ public class OverlayPetService extends Service {
     public void onCreate() {
         super.onCreate();
         windowManager = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
-        aiChatClient = new AiChatClient(this);
+        aiChatClient = AiChatClient.getInstance(this);
         aiChatClient.connect();
         createNotificationChannel();
         startForeground(NOTIFICATION_ID, buildNotification());
@@ -167,10 +167,12 @@ public class OverlayPetService extends Service {
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 chatType,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                        | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
                 PixelFormat.TRANSLUCENT
         );
         chatBubbleParams.gravity = Gravity.TOP | Gravity.START;
+        chatBubbleParams.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE;
 
         float petCenterX = petParams.x + petView.getWidth() / 2f;
         float petTopY = petParams.y;
@@ -202,10 +204,8 @@ public class OverlayPetService extends Service {
             petView = null;
         }
         hideChatBubble();
-        if (aiChatClient != null) {
-            aiChatClient.destroy();
-            aiChatClient = null;
-        }
+        // 单例由所有组件共享，服务销毁时不 disconnect，保持连接给 ChatActivity 复用
+        aiChatClient = null;
     }
 
     @Nullable

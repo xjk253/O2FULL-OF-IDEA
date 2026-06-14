@@ -39,7 +39,7 @@ public class ChatActivity extends AppCompatActivity {
         etChatInput = findViewById(R.id.et_chat_input);
         btnSend = findViewById(R.id.btn_send);
 
-        aiChatClient = new AiChatClient(this);
+        aiChatClient = AiChatClient.getInstance(this);
         aiChatClient.connect();
 
         adapter = new ChatAdapter(messages);
@@ -139,8 +139,7 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (aiChatClient != null) {
-            aiChatClient.destroy();
-        }
+        // 单例由所有组件共享，不在这里销毁
+        aiChatClient = null;
     }
 }

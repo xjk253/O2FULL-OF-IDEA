@@ -4,6 +4,7 @@ import android.content.Context;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -55,6 +56,28 @@ public class ChatBubbleView extends LinearLayout {
         btnCloseChat.setOnClickListener(v -> {
             if (listener != null) {
                 listener.onClose();
+            }
+        });
+
+        etChatInput.setOnTouchListener((v, event) -> {
+            if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                v.requestFocus();
+                InputMethodManager imm = (InputMethodManager) context
+                        .getSystemService(Context.INPUT_METHOD_SERVICE);
+                if (imm != null) {
+                    imm.showSoftInput(v, InputMethodManager.SHOW_IMPLICIT);
+                }
+            }
+            return false;
+        });
+
+        etChatInput.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                InputMethodManager imm = (InputMethodManager) context
+                        .getSystemService(Context.INPUT_METHOD_SERVICE);
+                if (imm != null) {
+                    imm.showSoftInput(v, InputMethodManager.SHOW_IMPLICIT);
+                }
             }
         });
     }
