@@ -66,6 +66,12 @@ public class MessageStore {
         prefs.edit().putString(KEY_HISTORY, arr.toString()).apply();
     }
 
+    public void append(ChatMessage message) {
+        List<ChatMessage> list = load();
+        list.add(message);
+        save(list);
+    }
+
     public void clear() {
         prefs.edit().remove(KEY_HISTORY).apply();
     }

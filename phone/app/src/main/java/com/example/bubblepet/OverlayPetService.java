@@ -28,6 +28,7 @@ public class OverlayPetService extends Service {
     private boolean isChatVisible = false;
     private AiChatClient aiChatClient;
     private TtsPlayer ttsPlayer;
+    private MessageStore messageStore;
 
     @Override
     public void onCreate() {
@@ -36,12 +37,20 @@ public class OverlayPetService extends Service {
         aiChatClient = AiChatClient.getInstance(this);
         aiChatClient.connect();
         ttsPlayer = new TtsPlayer(this);
+        messageStore = new MessageStore(this);
         aiChatClient.addOnSentenceListener(sentence -> {
             if (petView != null && sentence.expression != null) {
                 petView.setExpression(sentence.expression);
             }
             if (ttsPlayer != null && sentence.ttsText != null) {
                 ttsPlayer.speak(sentence.ttsText);
+            }
+            // 持久化 AI 回复，展开到全屏聊天时可看到历史
+            if (messageStore != null) {
+                String text = sentence.display.isEmpty() ? sentence.ttsText : sentence.display;
+                if (!text.isEmpty()) {
+                    messageStore.append(new ChatMessage(text, false));
+                }
             }
         });
         createNotificationChannel();
@@ -147,6 +156,10 @@ public class OverlayPetService extends Service {
         chatBubbleView.setOnChatListener(new ChatBubbleView.OnChatListener() {
             @Override
             public void onSendMessage(String message) {
+                // 持久化用户消息
+                if (messageStore != null) {
+                    messageStore.append(new ChatMessage(message, true));
+                }
                 aiChatClient.sendMessage(message, reply ->
                         chatBubbleView.setLastMessage(reply)
                 );
