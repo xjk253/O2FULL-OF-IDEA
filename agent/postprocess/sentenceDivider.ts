@@ -7,41 +7,21 @@ export async function* sentenceDivider(
     buffer += chunk;
   }
 
+  // 统一在分句前剥离所有 think 块,兼容多种写法:
+  //   <think>...</think>  <think/>...</think>  <think attr>...</think>
+  //   非标准双斜杠:  <think/>...</think/>  (旧测试用例)
+  //   自闭合无内容:  <think/>  <think></think>
+  buffer = buffer
+    .replace(/<think\b[^>]*>[\s\S]*?<\/think\b[^>]*>/gi, "")
+    .replace(/<think\b[^>]*\/>/gi, "");
+
   // split on sentence boundaries, keeping delimiter with sentence
-  // but NOT inside <think/> tags
   const parts = buffer.split(/(?<=[。！？.!?])/g);
 
-  let inside = false;
-  let acc = "";
-
   for (const part of parts) {
-    const hasOpen = part.includes("<think/>");
-    const hasClose = part.includes("</think/>");
-
-    if (hasOpen && hasClose) {
-      // single sentence think block
-      acc += part;
-      yield acc.trim();
-      acc = "";
-    } else if (hasOpen) {
-      inside = true;
-      acc += part;
-    } else if (hasClose) {
-      inside = false;
-      acc += part;
-      yield acc.trim();
-      acc = "";
-    } else if (inside) {
-      acc += part;
-    } else {
-      const trimmed = part.trim();
-      if (trimmed.length > 0) {
-        yield trimmed;
-      }
+    const trimmed = part.trim();
+    if (trimmed.length > 0) {
+      yield trimmed;
     }
-  }
-
-  if (acc.trim().length > 0) {
-    yield acc.trim();
   }
 }

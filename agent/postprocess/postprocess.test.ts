@@ -28,14 +28,14 @@ describe("postprocess pipeline", () => {
     expect(results[1].actions.expressions).toEqual([1]); // excited
   });
 
-  it("converts <think/> to parentheses in display, strips from tts", async () => {
+  it("strips <think/> block from display and tts", async () => {
     const pipeline = composePipeline(emoMap);
     const tokens = streamFrom(
       "<think/>主人不开心</think/>[sad] 主人……你还好吗？",
     );
     const results = await collect(pipeline(tokens));
 
-    expect(results[0].displayText).toContain("(主人不开心)");
+    expect(results[0].displayText).toBe("[sad] 主人……你还好吗？");
     expect(results[0].ttsText).toBe("主人……你还好吗？");
   });
 
@@ -55,15 +55,45 @@ describe("postprocess pipeline", () => {
     expect(results[0].actions.expressions).toEqual([]);
   });
 
-  it("handles multi-sentence <think/> tag", async () => {
+  it("strips multi-sentence <think/> block", async () => {
     const pipeline = composePipeline(emoMap);
     const tokens = streamFrom(
       "<think/>主人不开心。他好像很累。</think/>[sad] 主人……你还好吗？",
     );
     const results = await collect(pipeline(tokens));
 
-    expect(results[0].displayText).toContain("(主人不开心。他好像很累。)");
+    expect(results[0].displayText).toBe("[sad] 主人……你还好吗？");
     expect(results[0].ttsText).toBe("主人……你还好吗？");
+  });
+
+  it("strips standard <think>...</think> form", async () => {
+    const pipeline = composePipeline(emoMap);
+    const tokens = streamFrom(
+      "<think>内部独白</think>[happy] 主人你好！",
+    );
+    const results = await collect(pipeline(tokens));
+
+    expect(results[0].displayText).toBe("[happy] 主人你好！");
+    expect(results[0].ttsText).toBe("主人你好！");
+  });
+
+  it("strips <think/>...</think> mixed form (self-close open, std close)", async () => {
+    const pipeline = composePipeline(emoMap);
+    const tokens = streamFrom(
+      "<think/>内部独白</think>[happy] 主人你好！",
+    );
+    const results = await collect(pipeline(tokens));
+
+    expect(results[0].displayText).toBe("[happy] 主人你好！");
+    expect(results[0].ttsText).toBe("主人你好！");
+  });
+
+  it("strips lone self-closing <think/>", async () => {
+    const pipeline = composePipeline(emoMap);
+    const tokens = streamFrom("<think/>[happy] 主人你好！");
+    const results = await collect(pipeline(tokens));
+
+    expect(results[0].displayText).toBe("[happy] 主人你好！");
   });
 
   it("strips multiple expression tags from tts", async () => {
